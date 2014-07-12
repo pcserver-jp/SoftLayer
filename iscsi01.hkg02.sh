@@ -1,5 +1,7 @@
 #!/bin/bash
 
+exec 2> /root/post_install.err
+
 cat << 'EOF' | tee /etc/ssh/sshd_config
 AddressFamily inet
 Protocol 2
