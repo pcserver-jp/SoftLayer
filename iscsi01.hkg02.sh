@@ -203,6 +203,7 @@ chown softlayer:softlayer /home/softlayer/.softlayer*
 mkdir /var/www/html/repo.nosig/
 
 yum clean all
+sed -i -e 's/^DEFAULTKERNEL=.*$/DEFAULTKERNEL=kernel-uek/' /etc/sysconfig/kernel
 curl -O https://linux.oracle.com/switch/centos2ol.sh
 yes | sh centos2ol.sh
 mkdir /var/www/html/oracle/
