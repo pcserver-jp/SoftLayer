@@ -226,7 +226,9 @@ echo oracle | passwd --stdin oracle
 useradd -g oinstall -G asmadmin,asmdba,asmoper -u 54322 grid
 echo oracle | passwd --stdin grid
 
-yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest update
+while :
+do
+yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest update || continue
 yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest install \
  kernel-uek            \
  kernel-uek-devel      \
@@ -259,8 +261,10 @@ yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest install \
  reflink               \
  ocfs2-tools-devel     \
  oracleasm-support     \
- oracle-rdbms-server-12cR1-preinstall
-yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest groupinstall "X Window System" "Development tools" "Desktop"
+ oracle-rdbms-server-12cR1-preinstall || continue
+yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest groupinstall "X Window System" "Development tools" "Desktop" || continue
+break
+done
 mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
 
 for i in $(chkconfig --list | grep ^[A-Za-z] | grep -v services: | awk '{print $1}')
