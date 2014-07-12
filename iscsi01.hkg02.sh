@@ -229,6 +229,7 @@ yum -y install         \
  kernel-uek            \
  kernel-uek-devel      \
  ntpdate               \
+ createrepo            \
  iscsi-initiator-utils \
  scsi-target-utils     \
  perl-Authen-SASL      \
