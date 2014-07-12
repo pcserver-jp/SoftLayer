@@ -203,13 +203,14 @@ chown softlayer:softlayer /home/softlayer/.softlayer*
 mkdir /var/www/html/repo.nosig/
 
 yum clean all
-sed -i -e 's/^DEFAULTKERNEL=.*$/DEFAULTKERNEL=kernel-uek/' /etc/sysconfig/kernel
+#sed -i -e 's/^DEFAULTKERNEL=.*$/DEFAULTKERNEL=kernel-uek/' /etc/sysconfig/kernel
 curl -O https://linux.oracle.com/switch/centos2ol.sh
 yes | sh centos2ol.sh
 mkdir /var/www/html/oracle/
 mv centos2ol.sh /var/www/html/oracle/
 mkdir /var/www/html/repo.ol6/
 mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
+yum -y remove $(rpm -qa | grep centos)
 
 groupadd -g 54321 oinstall
 groupadd -g 54322 dba
@@ -225,9 +226,8 @@ echo oracle | passwd --stdin oracle
 useradd -g oinstall -G asmadmin,asmdba,asmoper -u 54322 grid
 echo oracle | passwd --stdin grid
 
-yum -y remove ntpdate centos-indexhtml
-yum -y --enablerepo=ol6_u5_base,ol6_u5_base,ol6_UEKR3_latest update
-yum -y --enablerepo=ol6_u5_base,ol6_u5_base,ol6_UEKR3_latest install \
+yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest update
+yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest install \
  kernel-uek            \
  kernel-uek-devel      \
  ntpdate               \
@@ -260,7 +260,7 @@ yum -y --enablerepo=ol6_u5_base,ol6_u5_base,ol6_UEKR3_latest install \
  ocfs2-tools-devel     \
  oracleasm-support     \
  oracle-rdbms-server-12cR1-preinstall
-yum -y --enablerepo=ol6_u5_base,ol6_u5_base,ol6_UEKR3_latest groupinstall "X Window System" "Development tools" "Desktop"
+yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest groupinstall "X Window System" "Development tools" "Desktop"
 mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
 
 for i in $(chkconfig --list | grep ^[A-Za-z] | grep -v services: | awk '{print $1}')
