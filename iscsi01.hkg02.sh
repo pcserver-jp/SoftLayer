@@ -210,7 +210,6 @@ mkdir /var/www/html/oracle/
 mv centos2ol.sh /var/www/html/oracle/
 mkdir /var/www/html/repo.ol6/
 mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
-yum -y remove $(rpm -qa | grep centos)
 
 groupadd -g 54321 oinstall
 groupadd -g 54322 dba
@@ -228,6 +227,7 @@ echo oracle | passwd --stdin grid
 
 while :
 do
+for i in $(rpm -qa | grep centos); do yum -y remove $i; done || continue
 yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest update || continue
 yum -y --enablerepo=ol6_u4_base,ol6_u5_base,ol6_UEK_latest install \
  kernel-uek            \
