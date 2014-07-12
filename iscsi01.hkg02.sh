@@ -204,7 +204,7 @@ mkdir /var/www/html/repo.nosig/
 
 yum clean all
 curl -O https://linux.oracle.com/switch/centos2ol.sh
-sh centos2ol.sh
+yes | sh centos2ol.sh
 mkdir /var/www/html/oracle/
 mv centos2ol.sh /var/www/html/oracle/
 mkdir /var/www/html/repo.ol6/
