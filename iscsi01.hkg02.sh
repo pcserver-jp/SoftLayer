@@ -279,6 +279,7 @@ yum -y --enablerepo=ol6_latest,ol6_u4_base,ol6_UEK_latest install \
  systemtap-devel                 \
  xinetd                          \
  firefox                         \
+ screen                          \
  reflink                         \
  ocfs2-tools-devel               \
  oracleasm-support               \
