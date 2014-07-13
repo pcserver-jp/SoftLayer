@@ -30,24 +30,7 @@ PermitTunnel no
 Subsystem       sftp    /usr/libexec/openssh/sftp-server
 UseDNS no
 EOF
-
-sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD SHA512/' /etc/login.defs
-sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs
-sed -i -e 's/^PASSWDALGORITHM=.*$/PASSWDALGORITHM=sha512/' /etc/sysconfig/authconfig
-sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth
-sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac
-sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth
-sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac
-
-echo oracle | passwd --stdin root
-
-echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel
-groupadd -g 500 softlayer
-useradd -g softlayer -G wheel -u 500 softlayer
-echo oracle | passwd --stdin softlayer
-chage -d 0 softlayer
-cp -a .ssh /home/softlayer/
-chown -R softlayer:softlayer /home/softlayer/.ssh
+/etc/init.d/sshd restart
 
 cat << 'EOF' | tee /etc/sysconfig/iptables
 *filter
@@ -98,44 +81,63 @@ if ! ifconfig bond0 > /dev/null 2>&1; then
   sed -i -e '/eth3/d' /etc/sysconfig/iptables
 fi
 chmod 600 /etc/sysconfig/iptables
+/etc/init.d/iptables restart
+
+sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD SHA512/' /etc/login.defs
+sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs
+sed -i -e 's/^PASSWDALGORITHM=.*$/PASSWDALGORITHM=sha512/' /etc/sysconfig/authconfig
+sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth
+sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac
+sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth
+sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac
+
+echo oracle | passwd --stdin root
+
+echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel
+groupadd -g 500 softlayer
+useradd -g softlayer -G wheel -u 500 softlayer
+echo oracle | passwd --stdin softlayer
+chage -d 0 softlayer
+cp -a .ssh /home/softlayer/
+chown -R softlayer:softlayer /home/softlayer/.ssh
 
 sed -i -e 's/^keepcache=.*$/keepcache=1/' /etc/yum.conf
 sed -i -e '/^assumeyes=.*$/d' /etc/yum.conf
 
 yum -y update
-yum -y install \
- apr \
- apr-util \
- apr-util-ldap \
- crypto-utils \
- db4-cxx \
- db4-devel \
- elinks \
- gd \
- gdbm-devel \
- glibc-devel \
- glibc-headers \
- httpd \
- httpd-manual \
- httpd-tools \
- ipmitool \
- kernel-headers \
- libXpm \
- lm_sensors-libs \
- mailcap \
- mod_perl \
- mod_ssl \
- mod_wsgi \
- net-snmp-libs \
- nss_compat_ossl \
- OpenIPMI \
- OpenIPMI-libs \
- perl-BSD-Resource \
- perl-devel \
+yum -y install           \
+ apr                     \
+ apr-util                \
+ apr-util-ldap           \
+ crypto-utils            \
+ db4-cxx                 \
+ db4-devel               \
+ elinks                  \
+ gd                      \
+ gdbm-devel              \
+ glibc-devel             \
+ glibc-headers           \
+ httpd                   \
+ httpd-manual            \
+ httpd-tools             \
+ ipmitool                \
+ kernel-headers          \
+ libXpm                  \
+ lm_sensors-libs         \
+ mailcap                 \
+ mod_perl                \
+ mod_ssl                 \
+ mod_wsgi                \
+ net-snmp-libs           \
+ nss_compat_ossl         \
+ OpenIPMI                \
+ OpenIPMI-libs           \
+ perl-BSD-Resource       \
+ perl-devel              \
  perl-ExtUtils-MakeMaker \
- perl-ExtUtils-ParseXS \
- perl-Newt \
- perl-Test-Harness \
+ perl-ExtUtils-ParseXS   \
+ perl-Newt               \
+ perl-Test-Harness       \
  webalizer
 
 /etc/init.d/ip6tables stop
@@ -231,37 +233,53 @@ echo oracle | passwd --stdin grid
 yum -y remove ntpdate centos-indexhtml
 yum -y --enablerepo=ol6_latest,ol6_u4_base,ol6_UEK_latest update
 yum -y --enablerepo=ol6_latest,ol6_u4_base,ol6_UEK_latest install \
- kernel-uek            \
- kernel-uek-devel      \
- ntpdate               \
- createrepo            \
- iscsi-initiator-utils \
- scsi-target-utils     \
- perl-Authen-SASL      \
- perl-MIME-tools       \
- xterm                 \
- xorg-x11-apps         \
- tigervnc-server       \
- ipa-gothic-fonts      \
- ipa-mincho-fonts      \
- ipa-pgothic-fonts     \
- ipa-pmincho-fonts     \
- vlgothic-fonts        \
- vlgothic-p-fonts      \
- bind-utils            \
- compat-libcap1        \
- compat-libstdc++-33   \
- ksh                   \
- libaio-devel          \
- nfs-utils             \
- smartmontools         \
- sysstat               \
- systemtap-devel       \
- xinetd                \
- firefox               \
- reflink               \
- ocfs2-tools-devel     \
- oracleasm-support     \
+ kernel-uek                      \
+ kernel-uek-devel                \
+ abrt                            \
+ abrt-addon-ccpp                 \
+ abrt-addon-kerneloops           \
+ abrt-addon-python               \
+ abrt-cli                        \
+ abrt-libs                       \
+ abrt-tui                        \
+ libreport                       \
+ libreport-cli                   \
+ libreport-compat                \
+ libreport-plugin-kerneloops     \
+ libreport-plugin-logger         \
+ libreport-plugin-mailx          \
+ libreport-python                \
+ libreport-plugin-reportuploader \
+ ntpdate                         \
+ redhat-indexhtml                \
+ createrepo                      \
+ iscsi-initiator-utils           \
+ scsi-target-utils               \
+ perl-Authen-SASL                \
+ perl-MIME-tools                 \
+ xterm                           \
+ xorg-x11-apps                   \
+ tigervnc-server                 \
+ ipa-gothic-fonts                \
+ ipa-mincho-fonts                \
+ ipa-pgothic-fonts               \
+ ipa-pmincho-fonts               \
+ vlgothic-fonts                  \
+ vlgothic-p-fonts                \
+ bind-utils                      \
+ compat-libcap1                  \
+ compat-libstdc++-33             \
+ ksh                             \
+ libaio-devel                    \
+ nfs-utils                       \
+ smartmontools                   \
+ sysstat                         \
+ systemtap-devel                 \
+ xinetd                          \
+ firefox                         \
+ reflink                         \
+ ocfs2-tools-devel               \
+ oracleasm-support               \
  oracle-rdbms-server-12cR1-preinstall
 yum -y --enablerepo=ol6_latest,ol6_u4_base,ol6_UEK_latest groupinstall "X Window System" "Development tools" "Desktop"
 mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
