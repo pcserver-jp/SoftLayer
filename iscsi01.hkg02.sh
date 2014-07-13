@@ -382,6 +382,24 @@ NpgcSNBAR0Mk4czf2yI8f9iP
 EOF
 chmod 400 /etc/pki/tls/certs/server.*
 
+cat << 'EOF' | tee /etc/httpd/.htpasswd
+softlayer:y9hIb4q5lO92k
+EOF
+chmod 400 /etc/httpd/.htpasswd
+chown apache /etc/httpd/.htpasswd
+mkdir /var/www/html/prov/
+chmod 750 /var/www/html/prov/
+chown root:apache /var/www/html/prov/
+cat << 'EOF' | tee /etc/httpd/conf.d/prov.conf
+<Directory "/var/www/html/prov">
+    AuthType Basic
+    AuthName "Secret Zone"
+    AuthUserFile /etc/httpd/.htpasswd
+    Require user softlayer
+</Directory>
+EOF
+chmod 400 /etc/httpd/conf.d/prov.conf
+
 createrepo /var/www/html/repo.ol6/
 createrepo /var/www/html/repo.nosig/
 mkdir /var/www/html/norpms
