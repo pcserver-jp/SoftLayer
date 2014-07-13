@@ -2,6 +2,8 @@
 
 exec 2>&1
 
+MY_DOMAIN=example.com
+
 cat << 'EOF' | tee /etc/ssh/sshd_config
 AddressFamily inet
 Protocol 2
@@ -547,10 +549,10 @@ cat << 'EOF' | tee /etc/dnsmasq.resolv.conf
 nameserver 10.0.80.11
 nameserver 10.0.80.12
 EOF
-cat << 'EOF' | tee /etc/resolv.conf
+cat << EOF | tee /etc/resolv.conf
 nameserver 127.0.0.1
 options single-request
-search example.com
+search $MY_DOMAIN
 EOF
 sed -i -e 's/^hosts:.*$/hosts:      dns files/' /etc/nsswitch.conf
 
