@@ -92,7 +92,6 @@ sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth
 sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac
 sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth
 sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac
-
 echo oracle | passwd --stdin root
 
 echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel
@@ -205,8 +204,6 @@ chmod 600 /home/softlayer/.softlayer
 echo 'user = SL999999:abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01' | tee /home/softlayer/.softlayer.user
 chmod 600 /home/softlayer/.softlayer.user
 chown softlayer:softlayer /home/softlayer/.softlayer*
-
-mkdir /var/www/html/repo.nosig/
 
 yum clean all
 #sed -i -e 's/^DEFAULTKERNEL=.*$/DEFAULTKERNEL=kernel-uek/' /etc/sysconfig/kernel
@@ -404,6 +401,7 @@ EOF
 chmod 400 /etc/httpd/conf.d/prov.conf
 
 createrepo /var/www/html/repo.ol6/
+mkdir /var/www/html/repo.nosig/
 createrepo /var/www/html/repo.nosig/
 mkdir /var/www/html/norpms
 createrepo /var/www/html/norpms/
