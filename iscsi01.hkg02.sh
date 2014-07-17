@@ -92,7 +92,7 @@ sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth
 sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac
 sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth
 sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac
-echo oracle | passwd --stdin root
+dd if=/dev/urandom bs=1 count=50 2> /dev/null | base64 | passwd --stdin root
 
 echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel
 groupadd -g 500 softlayer
@@ -225,8 +225,10 @@ groupadd -g 54328 asmdba
 groupadd -g 54329 asmoper
 useradd -g oinstall -G dba,backupdba,dgdba,kmdba,asmdba -u 54321 oracle
 echo oracle | passwd --stdin oracle
+chage -d 0 oracle
 useradd -g oinstall -G asmadmin,asmdba,asmoper -u 54322 grid
 echo oracle | passwd --stdin grid
+chage -d 0 grid
 
 #for i in $(rpm -qa | grep centos); do yum -y remove $i; done
 yum -y remove ntpdate centos-indexhtml
@@ -324,10 +326,10 @@ VNCSERVERS="1:softlayer"
 VNCSERVERARGS[1]="-geometry 1024x768 -nolisten tcp -localhost"
 EOF
 
-mkdir /home/softlayer/.vnc
-echo czhlMTYhpiU= | base64 -di | tee /home/softlayer/.vnc/passwd
-chmod 600 /home/softlayer/.vnc/passwd
-chown -R softlayer:softlayer /home/softlayer/.vnc
+#mkdir /home/softlayer/.vnc
+#echo czhlMTYhpiU= | base64 -di | tee /home/softlayer/.vnc/passwd
+#chmod 600 /home/softlayer/.vnc/passwd
+#chown -R softlayer:softlayer /home/softlayer/.vnc
 
 cat << 'EOF' | tee /etc/pki/tls/certs/server.key
 -----BEGIN RSA PRIVATE KEY-----
@@ -382,11 +384,11 @@ NpgcSNBAR0Mk4czf2yI8f9iP
 EOF
 chmod 400 /etc/pki/tls/certs/server.*
 
-cat << 'EOF' | tee /etc/httpd/.htpasswd
-softlayer:y9hIb4q5lO92k
-EOF
-chmod 400 /etc/httpd/.htpasswd
-chown apache /etc/httpd/.htpasswd
+#cat << 'EOF' | tee /etc/httpd/.htpasswd
+#softlayer:y9hIb4q5lO92k
+#EOF
+#chmod 400 /etc/httpd/.htpasswd
+#chown apache /etc/httpd/.htpasswd
 mkdir /var/www/html/prov/
 chmod 750 /var/www/html/prov/
 chown root:apache /var/www/html/prov/
@@ -588,8 +590,10 @@ cat << 'EOF' | tee -a /etc/fstab
 /dev/vg0/u05            /u05                    ext4    defaults,noatime 0 0
 EOF
 mount -a
+
 mv /var/www /u01/
 ln -s /u01/www /var/www
+
 dd if=/dev/zero of=/u02/lun1 bs=1M count=0 seek=20480
 dd if=/dev/zero of=/u02/lun2 bs=1M count=0 seek=20480
 dd if=/dev/zero of=/u02/lun3 bs=1M count=0 seek=20480
@@ -599,6 +603,7 @@ dd if=/dev/zero of=/u05/lun6 bs=1M count=0 seek=102400
 dd if=/dev/zero of=/u02/lun7 bs=1M count=0 seek=204800
 dd if=/dev/zero of=/u02/lun8 bs=1M count=0 seek=204800
 dd if=/dev/zero of=/u02/lun9 bs=1M count=0 seek=204800
+
 cat << 'EOF' | tee /etc/tgt/targets.conf
 <target iqn.2001-05.com.equallogic:0-8a0906-2ff8d0b0c-a5f00f70a42535b9-sli999999-1>
     backing-store /u02/lun1
