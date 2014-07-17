@@ -3,6 +3,45 @@
 exec 2>&1
 
 MY_DOMAIN=example.com
+#MY_PRIVATE_4=2
+##### Please change the following settings to your portable private addresses.
+#PRIVATE_BASE_123=10.64.102
+#PRIVATE_BASE_4=0
+
+#NIC0=bond0; ifconfig bond0 > /dev/null 2>&1 || NIC0=eth0
+#PRIVATE_IP=$(ifconfig $NIC0 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
+#NIC1=bond1; ifconfig bond1 > /dev/null 2>&1 || NIC1=eth1
+#PUBLOC_IP=$(ifconfig $NIC1 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
+
+#cat << EOF | sudo tee /etc/hosts
+#127.0.0.1       localhost.localdomain   localhost
+#$PUBLOC_IP  iscsi01-g.$MY_DOMAIN   iscsi01-g
+#$PRIVATE_IP   iscsi01-prm.$MY_DOMAIN iscsi01-prm
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+2))     iscsi01.$MY_DOMAIN     iscsi01  dns01.$MY_DOMAIN dns01 repo01.$MY_DOMAIN repo01
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+3))     db01.$MY_DOMAIN        db01
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+4))     db02.$MY_DOMAIN        db02
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+5))     nfs01.$MY_DOMAIN       nfs01
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+6))     nfs02.$MY_DOMAIN       nfs02
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+57))    nfs.$MY_DOMAIN         nfs
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+58))    db01-vip.$MY_DOMAIN    db01-vip
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+59))    db02-vip.$MY_DOMAIN    db02-vip
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+60))    rac-scan.$MY_DOMAIN    rac-scan
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+61))    rac-scan.$MY_DOMAIN    rac-scan
+#$PRIVATE_BASE_123.$((PRIVATE_BASE_4+62))    rac-scan.$MY_DOMAIN    rac-scan
+#192.168.0.1     db01-prv.$MY_DOMAIN    db01-prv
+#192.168.0.2     db02-prv.$MY_DOMAIN    db02-prv
+#192.168.0.3     nfs01-prv.$MY_DOMAIN   nfs01-prv
+#192.168.0.4     nfs02-prv.$MY_DOMAIN   nfs02-prv
+#EOF
+
+#cat << EOF | sudo tee /etc/sysconfig/network-scripts/ifcfg-$NIC0:1
+#DEVICE=$NIC0:1
+#BOOTPROTO=static
+#ONBOOT=yes
+#IPADDR=$PRIVATE_BASE_123.$MY_PRIVATE_4
+#NETMASK=255.255.255.192
+#NM_CONTROLLED=no
+#EOF
 
 cat << 'EOF' | tee /etc/ssh/sshd_config
 AddressFamily inet
@@ -326,6 +365,7 @@ VNCSERVERS="1:softlayer"
 VNCSERVERARGS[1]="-geometry 1024x768 -nolisten tcp -localhost"
 EOF
 
+##### [softlayer@iscsi01 ~]$ vncpasswd
 #mkdir /home/softlayer/.vnc
 #echo czhlMTYhpiU= | base64 -di | tee /home/softlayer/.vnc/passwd
 #chmod 600 /home/softlayer/.vnc/passwd
@@ -384,11 +424,13 @@ NpgcSNBAR0Mk4czf2yI8f9iP
 EOF
 chmod 400 /etc/pki/tls/certs/server.*
 
+##### [softlayer@iscsi01 ~]$ sudo htpasswd -c /etc/httpd/.htpasswd softlayer
 #cat << 'EOF' | tee /etc/httpd/.htpasswd
 #softlayer:y9hIb4q5lO92k
 #EOF
 #chmod 400 /etc/httpd/.htpasswd
 #chown apache /etc/httpd/.htpasswd
+
 mkdir /var/www/html/prov/
 chmod 750 /var/www/html/prov/
 chown root:apache /var/www/html/prov/
