@@ -366,10 +366,11 @@ VNCSERVERARGS[1]="-geometry 1024x768 -nolisten tcp -localhost"
 EOF
 
 ##### [softlayer@iscsi01 ~]$ vncpasswd
-#mkdir /home/softlayer/.vnc
+mkdir /home/softlayer/.vnc
 #echo czhlMTYhpiU= | base64 -di | tee /home/softlayer/.vnc/passwd
-#chmod 600 /home/softlayer/.vnc/passwd
-#chown -R softlayer:softlayer /home/softlayer/.vnc
+touch /home/softlayer/.vnc/passwd
+chmod 600 /home/softlayer/.vnc/passwd
+chown -R softlayer:softlayer /home/softlayer/.vnc
 
 cat << 'EOF' | tee /etc/pki/tls/certs/server.key
 -----BEGIN RSA PRIVATE KEY-----
@@ -428,8 +429,9 @@ chmod 400 /etc/pki/tls/certs/server.*
 #cat << 'EOF' | tee /etc/httpd/.htpasswd
 #softlayer:y9hIb4q5lO92k
 #EOF
-#chmod 400 /etc/httpd/.htpasswd
-#chown apache /etc/httpd/.htpasswd
+touch /etc/httpd/.htpasswd
+chmod 400 /etc/httpd/.htpasswd
+chown apache /etc/httpd/.htpasswd
 
 mkdir /var/www/html/prov/
 chmod 750 /var/www/html/prov/
