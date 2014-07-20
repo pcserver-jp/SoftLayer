@@ -451,8 +451,7 @@ mkdir /var/www/html/repo.nosig/
 createrepo /var/www/html/repo.nosig/
 mkdir /var/www/html/norpms
 createrepo /var/www/html/norpms/
-NIC0=bond0; ifconfig bond0 > /dev/null 2>&1 || NIC0=eth0
-PRIVATE_IP=$(ifconfig $NIC0 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
+PRIVATE_IP=repo01
 cat << EOF | tee /var/www/html/public-yum-ol6.repo
 [public_ol6_latest]
 name=Oracle Linux 6 Latest (x86_64)
