@@ -364,6 +364,8 @@ cat << 'EOF' | tee /etc/sysconfig/vncservers
 VNCSERVERS="1:softlayer"
 VNCSERVERARGS[1]="-geometry 1024x768 -nolisten tcp -localhost"
 EOF
+sudo sed -i -e '/^X-GNOME-Autostart-enabled/d' /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
+echo 'X-GNOME-Autostart-enabled=false' | sudo tee -a /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
 
 ##### [softlayer@iscsi01 ~]$ vncpasswd
 mkdir /home/softlayer/.vnc
