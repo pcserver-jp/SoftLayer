@@ -364,8 +364,8 @@ cat << 'EOF' | tee /etc/sysconfig/vncservers
 VNCSERVERS="1:softlayer"
 VNCSERVERARGS[1]="-geometry 1024x768 -nolisten tcp -localhost"
 EOF
-sudo sed -i -e '/^X-GNOME-Autostart-enabled/d' /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
-echo 'X-GNOME-Autostart-enabled=false' | sudo tee -a /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
+sed -i -e '/^X-GNOME-Autostart-enabled/d' /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
+echo 'X-GNOME-Autostart-enabled=false' | tee -a /etc/xdg/autostart/polkit-gnome-authentication-agent-1.desktop
 
 ##### [softlayer@iscsi01 ~]$ vncpasswd
 mkdir /home/softlayer/.vnc
@@ -447,6 +447,8 @@ cat << 'EOF' | tee /etc/httpd/conf.d/prov.conf
 </Directory>
 EOF
 chmod 400 /etc/httpd/conf.d/prov.conf
+sed -i -e 's%^SSLCertificateFile /etc/pki/tls/certs/localhost.crt%SSLCertificateFile /etc/pki/tls/certs/server.crt%' /etc/httpd/conf.d/ssl.conf
+sed -i -e 's%^SSLCertificateKeyFile /etc/pki/tls/private/localhost.key%SSLCertificateKeyFile /etc/pki/tls/certs/server.key%' /etc/httpd/conf.d/ssl.conf
 
 createrepo /var/www/html/repo.ol6/
 mkdir /var/www/html/repo.nosig/
