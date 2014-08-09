@@ -7,6 +7,7 @@ MY_ROOT_PW=
 MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_PW=sl-admin
 MY_SL_ADMIN_ID=65501
+
 WHEEL_SUDO_NOPASSWD=yes
 DISABLE_IPV6=yes
 
@@ -26,6 +27,14 @@ print_error_message_and_sleep()
   return $R
 }
 Error=print_error_message_and_sleep
+
+touch /etc/sudoers.d/wheel || $Error
+chmod 640 /etc/sudoers.d/wheel || $Error
+if [ "$WHEEL_SUDO_NOPASSWD" = "yes" ]; then
+  echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel || $Error
+else
+  echo '%wheel ALL=(ALL) ALL' | tee /etc/sudoers.d/wheel || $Error
+fi
 
 cp -a /etc/ssh/sshd_config /etc/ssh/sshd_config.org || $Error
 cat << 'EOF' | tee /etc/ssh/sshd_config || $Error
@@ -161,14 +170,6 @@ if [ "$MY_ROOT_PW" ]; then
   echo $MY_ROOT_PW | passwd --stdin root || $Error
 else
   dd if=/dev/urandom bs=1 count=50 2> /dev/null | base64 | passwd --stdin root || $Error
-fi
-
-touch /etc/sudoers.d/wheel || $Error
-chmod 640 /etc/sudoers.d/wheel || $Error
-if [ "$WHEEL_SUDO_NOPASSWD" = "yes" ]; then
-  echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel || $Error
-else
-  echo '%wheel ALL=(ALL) ALL' | tee /etc/sudoers.d/wheel || $Error
 fi
 
 groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
