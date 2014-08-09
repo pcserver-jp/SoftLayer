@@ -2,7 +2,7 @@
 
 exec 2>&1
 
-MY_DC=hkg02
+MY_DC=sea01
 MY_ROOT_PW=
 MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_PW=sl-admin
