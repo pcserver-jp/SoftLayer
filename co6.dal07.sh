@@ -121,9 +121,13 @@ IPV6_AUTOCONF=no
 IPV4_FAILURE_FATAL=yes
 EOF
   cat << 'EOF' | tee -a /etc/sysctl.conf || $Error
+
 # Disable IPv6
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+  cat << 'EOF' | sudo tee /etc/modprobe.d/disable-ipv6.conf
+options ipv6 disable=1
 EOF
 fi
 
