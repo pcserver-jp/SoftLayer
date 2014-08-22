@@ -126,7 +126,7 @@ EOF
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 EOF
-  cat << 'EOF' | sudo tee /etc/modprobe.d/disable-ipv6.conf
+  cat << 'EOF' | tee /etc/modprobe.d/disable-ipv6.conf || $Error
 options ipv6 disable=1
 EOF
 fi
