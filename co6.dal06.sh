@@ -122,14 +122,14 @@ EOF
   cat << 'EOF' | tee -a /etc/sysctl.conf || $Error
 
 # Disable IPv6
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
+#net.ipv6.conf.all.disable_ipv6 = 1
+#net.ipv6.conf.default.disable_ipv6 = 1
 EOF
   cat << 'EOF' | tee /etc/modprobe.d/disable-ipv6.conf || $Error
 options ipv6 disable=1
 EOF
 fi
-sudo sed -i -e 's/^net\.bridge/#net.bridge/' /etc/sysctl.conf || $Error
+sed -i -e 's/^net\.bridge/#net.bridge/' /etc/sysctl.conf || $Error
 
 cat << EOF | tee /etc/resolv.conf || $Error
 nameserver 10.0.80.11
@@ -155,20 +155,23 @@ EOF
 [ -e /etc/sysconfig/network-scripts/ifcfg-eth2  ] && echo 'ethtool --offload eth2 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
 [ -e /etc/sysconfig/network-scripts/ifcfg-eth3  ] && echo 'ethtool --offload eth3 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
 
-sudo sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/^splashimage/#splashimage/' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/biosdevname=0/biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/console=hvc0/console=hvc0 biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ crashkernel=auto//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ KEYBOARDTYPE=pc//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ KEYTABLE=us//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ LANG=en_US.UTF-8//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ SYSFONT=latarcyrheb-sun16//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ rhgb//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
-sudo sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
-sudo sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
+sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
+sed -i -e 's/^timeout=.*$/timeout=3/' /boot/grub/grub.conf || $Error
+sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
+sed -i -e 's/^splashimage/#splashimage/' /boot/grub/grub.conf || $Error
+sed -i -e 's/biosdevname=0/biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
+sed -i -e 's/console=hvc0/console=hvc0 biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ crashkernel=auto//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ KEYBOARDTYPE=pc//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ KEYTABLE=us//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ LANG=en_US.UTF-8//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ SYSFONT=latarcyrheb-sun16//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ rhgb//g' /boot/grub/grub.conf || $Error
+sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
+sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
+sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
+
+ifconfig bond0 > /dev/null && mv /etc/modprobe.conf /etc/modprobe.d/bonding.conf 2> /dev/null
 
 sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD SHA512/' /etc/login.defs || $Error
 sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs || $Error
