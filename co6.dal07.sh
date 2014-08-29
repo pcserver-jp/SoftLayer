@@ -20,8 +20,7 @@ print_error_message_and_sleep()
     echo "$E$E$E$E$E$E [$R] $*" 1>&2
     sleep 10
   else
-    local E="###### Error [$R] $* #####"
-    echo $E 1>&2
+    echo "###### Error [$R] $* #####" 1>&2
   fi
   ErrorCount=$((ErrorCount+1))
   return $R
@@ -130,6 +129,7 @@ EOF
 options ipv6 disable=1
 EOF
 fi
+sudo sed -i -e 's/^net\.bridge/#net.bridge/' /etc/sysctl.conf || $Error
 
 cat << EOF | tee /etc/resolv.conf || $Error
 nameserver 10.0.80.11
@@ -154,6 +154,21 @@ EOF
 [ -e /etc/sysconfig/network-scripts/ifcfg-eth1  ] && echo 'ethtool --offload eth1 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
 [ -e /etc/sysconfig/network-scripts/ifcfg-eth2  ] && echo 'ethtool --offload eth2 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
 [ -e /etc/sysconfig/network-scripts/ifcfg-eth3  ] && echo 'ethtool --offload eth3 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
+
+sudo sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/^splashimage/#splashimage/' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/biosdevname=0/biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/console=hvc0/console=hvc0 biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ crashkernel=auto//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ KEYBOARDTYPE=pc//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ KEYTABLE=us//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ LANG=en_US.UTF-8//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ SYSFONT=latarcyrheb-sun16//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ rhgb//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
+sudo sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
+sudo sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
 
 sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD SHA512/' /etc/login.defs || $Error
 sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs || $Error
