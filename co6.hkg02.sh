@@ -171,6 +171,18 @@ sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
 sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
 sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
 
+wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/vmlinuz || $Error
+wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/initrd.img || $Error
+NIC0=eth0
+ifconfig bond0 > /dev/null 2>&1 && NIC0=bond0
+cat << EOF | tee -a /boot/grub/grub.conf || $Error
+title Rescue
+^root (hd0,0)
+^kernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip=$(ifconfig $NIC0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=10.0.80.11
+^initrd /initrd.img
+EOF
+sed -i -e 's/^^/\t/g' /boot/grub/grub.conf || $Error
+
 ifconfig bond0 > /dev/null && mv /etc/modprobe.conf /etc/modprobe.d/bonding.conf 2> /dev/null
 
 sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD SHA512/' /etc/login.defs || $Error
