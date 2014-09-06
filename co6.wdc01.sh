@@ -168,8 +168,8 @@ sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
 sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
 sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
 
-wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/vmlinuz || $Error
-wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/initrd.img || $Error
+wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/vmlinuz > /dev/null 2>&1 || $Error
+wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/initrd.img > /dev/null 2>&1 || $Error
 NIC0=eth0
 ifconfig bond0 > /dev/null 2>&1 && NIC0=bond0
 cat << EOF | tee -a /boot/grub/grub.conf || $Error
