@@ -150,10 +150,7 @@ EOF
 [ -e /etc/sysconfig/network-scripts/ifcfg-bond0 ] && echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-bond0
 [ -e /etc/sysconfig/network-scripts/ifcfg-bond1 ] && echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-bond1
 
-[ -e /etc/sysconfig/network-scripts/ifcfg-eth0  ] && echo 'ethtool --offload eth0 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
-[ -e /etc/sysconfig/network-scripts/ifcfg-eth1  ] && echo 'ethtool --offload eth1 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
-[ -e /etc/sysconfig/network-scripts/ifcfg-eth2  ] && echo 'ethtool --offload eth2 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
-[ -e /etc/sysconfig/network-scripts/ifcfg-eth3  ] && echo 'ethtool --offload eth3 tx off sg off tso off gso off gro off' | tee -a /etc/rc.d/rc.local
+echo '/rescue/mk_offload_off' | tee -a /etc/rc.d/rc.local
 
 sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
 sed -i -e 's/^timeout=.*$/timeout=3/' /boot/grub/grub.conf || $Error
@@ -254,4 +251,123 @@ keys /etc/ntp/keys
 EOF
 fi
 
-reboot
+if grep -q ^CentOS /etc/system-release; then
+  cat << 'EOF' | tee /etc/yum.repos.d/CentOS-Base.repo || $Error
+[base]
+name=CentOS-$releasever - Base
+baseurl=http://mirrors.service.networklayer.com/centos/$releasever/os/$basearch/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
+
+[updates]
+name=CentOS-$releasever - Updates
+baseurl=http://mirrors.service.networklayer.com/centos/$releasever/updates/$basearch/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
+
+[extras]
+name=CentOS-$releasever - Extras
+baseurl=http://mirrors.service.networklayer.com/centos/$releasever/extras/$basearch/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+
+[centosplus]
+name=CentOS-$releasever - Plus
+baseurl=http://mirrors.service.networklayer.com/centos/$releasever/centosplus/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+
+[contrib]
+name=CentOS-$releasever - Contrib
+baseurl=http://mirrors.service.networklayer.com/centos/$releasever/contrib/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+EOF
+fi
+
+cat << 'EOF' | sudo tee /etc/yum.repos.d/epel.repo
+[epel]
+name=Extra Packages for Enterprise Linux 6 - $basearch
+mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgcheck=1
+gpgkey=http://ftp.riken.jp/Linux/fedora/epel/RPM-GPG-KEY-EPEL-6
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/elrepo.repo || $Error
+[elrepo]
+name=ELRepo.org Community Enterprise Linux Repository - el6
+baseurl=http://elrepo.org/linux/elrepo/el6/$basearch/
+        http://mirrors.coreix.net/elrepo/elrepo/el6/$basearch/
+        http://jur-linux.org/download/elrepo/elrepo/el6/$basearch/
+        http://repos.lax-noc.com/elrepo/elrepo/el6/$basearch/
+        http://mirror.ventraip.net.au/elrepo/elrepo/el6/$basearch/
+mirrorlist=http://mirrors.elrepo.org/mirrors-elrepo.el6
+enabled=0
+gpgcheck=1
+gpgkey=http://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+protect=0
+EOF
+
+mkdir /rescue || $Error
+
+cat << 'EOF' | tee /rescue/mk_portable_ip || $Error
+#!/bin/bash
+if [ ! "$1" ]; then
+  echo Usage: $0  new_portable_private_ip_address  [norestart]
+  exit 1
+fi
+[ -e /proc/net/bonding ] && NIC0=bond0 || NIC0=eth0
+NETWORK_123=$(echo $1 | awk -F. '{print $1 "." $2 "." $3}')
+NETWORK_4=$(($(echo $1 | awk -F. '{print $4}')&~63))
+GATEWAY="$NETWORK_123.$((NETWORK_4+1))"
+sed -i -e "s/^IPADDR=.*\$/IPADDR=$1/" /etc/sysconfig/network-scripts/ifcfg-$NIC0
+sed -i -e '/^GATEWAY=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC0
+sed -i -e "s%^10\\.0\\.0\\.0/8 via.*\$%10.0.0.0/8 via $GATEWAY%" /etc/sysconfig/network-scripts/route-$NIC0
+[ "$2" = "norestart" ] || /etc/init.d/network restart
+EOF
+chmod 755 /rescue/mk_portable_ip || $Error
+
+cat << 'EOF' | tee /rescue/mk_offload_off || $Error
+for i in eth0 eth1 eth2 eth3 bond0 bond1
+do
+  ifconfig $i > /dev/null 2>&1 || continue
+  for j in rx tx sg tso ufo gso gro lro rxvlan txvlan ntuple rxhash
+  do
+    ethtool --offload $i $j off 2> /dev/null
+  done
+  echo "[$i]"
+  ethtool --show-offload $i
+done
+EOF
+chmod 755 /rescue/mk_offload_off || $Error
+
+cat << 'EOF' | tee /rescue/reboot || $Error
+#!/bin/bash
+if [ -e /prox/xen ]; then
+  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault=2/' /boot/grub/grub.conf && reboot
+else
+  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 $@" && reboot
+fi
+EOF
+chmod 755 /rescue/reboot || $Error
+
+cat << 'EOF' | tee /usr/local/sbin/reboot_quick || $Error
+#!/bin/bash
+if [ ! -e /proc/xen ]; then
+  LINE=$(grep ^default= /boot/grub/grub.conf | sed 's/default=//')
+  KVER=$(grep -v ^# /boot/grub/grub.conf | grep vmlinuz- | sed 's/^.*vmlinuz-\([^ ]*\) .*$/\1/' | head -$((LINE+1)) | tail -1)
+  CMDLINE="$(grep -v ^# /boot/grub/grub.conf | grep vmlinuz- | sed 's/^.*vmlinuz-\([^ ]* \)\(.*\)$/\2/' | head -$((LINE+1)) | tail -1) $@"
+  /sbin/kexec -l /boot/vmlinuz-$KVER --initrd=/boot/initramfs-$KVER.img --command-line="$CMDLINE"
+fi
+/sbin/reboot
+EOF
+chmod 755 /usr/local/sbin/reboot_quick || $Error
+
+/usr/local/sbin/reboot_quick || $Error
