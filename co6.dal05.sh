@@ -168,8 +168,8 @@ sed -i -e 's/ quiet//g' /boot/grub/grub.conf || $Error
 sed -i -e '/^[^#]/ s/  / /g' /boot/grub/grub.conf || $Error
 sed -i -e 's/biosdevname=0/biosdevname=0 crashkernel=auto KEYBOARDTYPE=pc KEYTABLE=106 LANG=en_US.UTF-8 SYSFONT=latarcyrheb-sun16 elevator=deadline/g' /boot/grub/grub.conf || $Error
 
-wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/vmlinuz > /dev/null 2>&1 || $Error
-wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6/os/x86_64/isolinux/initrd.img > /dev/null 2>&1 || $Error
+wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/vmlinuz > /dev/null 2>&1 || $Error
+wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/initrd.img > /dev/null 2>&1 || $Error
 NIC0=eth0
 ifconfig bond0 > /dev/null 2>&1 && NIC0=bond0
 cat << EOF | tee -a /boot/grub/grub.conf || $Error
@@ -401,7 +401,6 @@ do
   do
     ethtool --offload $i $j off 2> /dev/null
   done
-  ethtool --show-offload $i
 done
 EOF
 chmod 755 /rescue/mk_offload_off || $Error
@@ -418,13 +417,14 @@ chmod 755 /rescue/reboot || $Error
 
 cat << 'EOF' | tee /usr/local/sbin/reboot_quick || $Error
 #!/bin/bash
+[ "$1" = "noreboot" ] && shift && NOREBOOT=yes
 if [ ! -e /proc/xen ]; then
   LINE=$(grep ^default= /boot/grub/grub.conf | sed 's/default=//')
   KVER=$(grep -v ^# /boot/grub/grub.conf | grep vmlinuz- | sed 's/^.*vmlinuz-\([^ ]*\) .*$/\1/' | head -$((LINE+1)) | tail -1)
   CMDLINE="$(grep -v ^# /boot/grub/grub.conf | grep vmlinuz- | sed 's/^.*vmlinuz-\([^ ]* \)\(.*\)$/\2/' | head -$((LINE+1)) | tail -1) $@"
   /sbin/kexec -l /boot/vmlinuz-$KVER --initrd=/boot/initramfs-$KVER.img --command-line="$CMDLINE"
 fi
-/sbin/reboot
+[ "$NOREBOOT" = "yes" ] || /sbin/reboot
 EOF
 chmod 755 /usr/local/sbin/reboot_quick || $Error
 
