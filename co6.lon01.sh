@@ -334,15 +334,73 @@ sed -i -e "s%^10\\.0\\.0\\.0/8 via.*\$%10.0.0.0/8 via $GATEWAY%" /etc/sysconfig/
 EOF
 chmod 755 /rescue/mk_portable_ip || $Error
 
+cat << 'EOF' | tee /rescue/mk_bond0
+#!/bin/sh
+ifconfig eth2 > /dev/null 2>&1 || exit 0
+ifconfig bond0 > /dev/null 2>&1 && exit 0
+IP=$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}')
+GATEWAY=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}')
+modprobe bonding
+#echo +bond0 > /sys/class/net/bonding_masters
+ifconfig bond0 down
+echo 4 > /sys/class/net/bond0/bonding/mode
+echo 100 > /sys/class/net/bond0/bonding/miimon
+echo fast > /sys/class/net/bond0/bonding/lacp_rate
+echo 1 > /sys/class/net/bond0/bonding/xmit_hash_policy
+ifconfig eth0 down; \
+ifconfig eth2 down; \
+ifconfig bond0 $IP netmask 255.255.255.192 up mtu 9000; \
+echo +eth0 > /sys/class/net/bond0/bonding/slaves; \
+echo +eth2 > /sys/class/net/bond0/bonding/slaves; \
+route add -net 0.0.0.0/0 gw $GATEWAY
+EOF
+chmod 755 /rescue/mk_bond0
+
+cat << 'EOF' | tee /rescue/mk_secure
+#!/bin/sh
+ifconfig bond1 down > /dev/null 2>&1
+ifconfig eth1 down > /dev/null 2>&1
+ifconfig eth3 down > /dev/null 2>&1
+/etc/init.d/sshd stop > /dev/null 2>&1
+kill -KILL $(ps -ef | grep [s]shd | grep anaconda | awk '{print $2}') > /dev/null 2>&1
+EOF
+chmod 755 /rescue/mk_secure
+
+cat << 'EOF' | tee /rescue/mount
+#!/bin/sh
+mkdir -p /backup
+[ "$1" ] || mount -t nfs $1:/backup /backup
+[ -e /proc/xen ] && DEV=xvda || DEV=sda
+mount -o rw,remount /dev/${DEV}2 /mnt/sysimage/
+mount /dev/${DEV}1 /mnt/sysimage/boot
+[ "$2" = "all" ] || exit 0
+mount -t proc /proc /mnt/sysimage/proc
+mount -t sysfs /sys /mnt/sysimage/sys
+mount --bind /dev /mnt/sysimage/dev
+EOF
+chmod 755 /rescue/mount
+
+cat << 'EOF' | tee /rescue/unmount
+#!/bin/sh
+umount /mnt/sysimage/dev
+umount /mnt/sysimage/sys
+umount /mnt/sysimage/proc
+umount /mnt/sysimage/boot
+[ -e /proc/xen ] && DEV=xvda || DEV=sda
+mount -o ro,remount /dev/${DEV}2 /mnt/sysimage/
+umount /backup
+EOF
+chmod 755 /rescue/unmount
+
 cat << 'EOF' | tee /rescue/mk_offload_off || $Error
 for i in eth0 eth1 eth2 eth3 bond0 bond1
 do
   ifconfig $i > /dev/null 2>&1 || continue
+  echo "[$i]"
   for j in rx tx sg tso ufo gso gro lro rxvlan txvlan ntuple rxhash
   do
     ethtool --offload $i $j off 2> /dev/null
   done
-  echo "[$i]"
   ethtool --show-offload $i
 done
 EOF
