@@ -408,7 +408,7 @@ chmod 755 /rescue/mk_offload_off || $Error
 cat << 'EOF' | tee /rescue/reboot || $Error
 #!/bin/bash
 if [ -e /proc/xen ]; then
-  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault=2/' /boot/grub/grub.conf && reboot
+  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" /boot/grub/grub.conf && reboot
 else
   kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 $@" && reboot
 fi
