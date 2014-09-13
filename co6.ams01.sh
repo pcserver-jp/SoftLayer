@@ -157,7 +157,7 @@ sed -i -e 's/^timeout=.*$/timeout=3/' /boot/grub/grub.conf || $Error
 sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
 sed -i -e 's/^splashimage/#splashimage/' /boot/grub/grub.conf || $Error
 sed -i -e 's/biosdevname=0/biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
-sed -i -e 's/console=hvc0/console=hvc0 biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
+sed -i -e 's/console=hvc0/console=hvc0 backup= biosdevname=0 selinux=0/g' /boot/grub/grub.conf || $Error
 sed -i -e 's/ crashkernel=auto//g' /boot/grub/grub.conf || $Error
 sed -i -e 's/ KEYBOARDTYPE=pc//g' /boot/grub/grub.conf || $Error
 sed -i -e 's/ KEYTABLE=us//g' /boot/grub/grub.conf || $Error
