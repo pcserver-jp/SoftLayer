@@ -651,7 +651,7 @@ w
 EOF
     pvcreate /dev/sda5 || $Error
     vgcreate -s 32M vg0 /dev/sda5 || $Error
-    if [ -e /dev/sdb -a ! /dev/sdb1 ]; then
+    if [ -e /dev/sdb -a ! -e /dev/sdb1 ]; then
       for i in b c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ ! -e /dev/sd$i ] || break
