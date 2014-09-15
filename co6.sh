@@ -419,6 +419,9 @@ yum -y install \
  telnet \
  watchdog || $Error
 
+yum -y --enablerepo=epel install \
+ bash-completion || $Error
+
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
 wget http://iij.dl.sourceforge.jp/linux-ha/61791/pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz || $Error
@@ -657,7 +660,7 @@ EOF
     if [ -e /dev/sdb -a ! -e /dev/sdb1 ]; then
       for i in b c d e f g h i j k l m n o p q r s t u v w x y z
       do
-        [ ! -e /dev/sd$i ] || break
+        [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || $Error
         dd if=/dev/zero of=/dev/sd$i bs=1M count=1 || $Error
         echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
