@@ -53,7 +53,7 @@ MY_SL_ADMIN_PW=sl-admin
 MY_SL_ADMIN_ID=65501
 WHEEL_SUDO_NOPASSWD=yes
 
-ifconfig bond0 && NIC0=bond0 || NIC0=eth0
+ifconfig bond0 2> /dev/null && NIC0=bond0 || NIC0=eth0
 IP0=$(ifconfig $NIC0 | grep inet | awk '{print $2}' | awk -F: '{print $2}')
 NETMASK0=255.255.255.192
 GATEWAY0=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}')
@@ -137,7 +137,7 @@ case $MY_DC in
   "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  -e 's/10\.2\.216/10.1.232/'  /etc/sysconfig/iptables || $Error;;
   "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  -e 's/10\.2\.216/10.1.16/'   /etc/sysconfig/iptables || $Error;;
 esac
-if ! ifconfig bond0; then
+if ! ifconfig bond0 2> /dev/null; then
   sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables || $Error
   sed -i -e '/bond1/ s/^/#/' /etc/sysconfig/iptables || $Error
   sed -i -e '/eth2/  s/^/#/' /etc/sysconfig/iptables || $Error
@@ -532,7 +532,9 @@ if [ ! -d /proc/xen/ ]; then
 fi
 EOF
 
-grep -q -v ^# /etc/cron.d/raid-check && sed -i -e 's/^/#/' /etc/cron.d/raid-check || $Error
+if grep -q -v ^# /etc/cron.d/raid-check; then
+  sed -i -e 's/^/#/' /etc/cron.d/raid-check || $Error
+fi
 
 for i in $(ls /etc/init.d/)
 do
@@ -573,7 +575,7 @@ if grep ' /disk' /etc/fstab; then
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
   swapoff /dev/sda3 || $Error
   if lsmod | grep -q ^aacraid; then
-    fdisk /dev/sda << 'EOF' || $Error
+    fdisk /dev/sda << 'EOF' || :
 u
 d
 5
@@ -640,7 +642,7 @@ EOF
     cat << 'EOF' | tee -a /etc/fstab || $Error
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
 EOF
-    fdisk /dev/sda << 'EOF' || $Error
+    fdisk /dev/sda << 'EOF' || :
 t
 5
 fd
@@ -664,7 +666,7 @@ fi
 if grep ^LABEL= /etc/fstab; then
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
   swapoff /dev/xvdb1 || $Error
-  fdisk -H 64 -S 32 /dev/xvdb << 'EOF' || $Error
+  fdisk -H 64 -S 32 /dev/xvdb << 'EOF' || :
 o
 n
 p
@@ -698,7 +700,7 @@ if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
 fi
 blkid
 
-mkdir /rescue || $Error
+mkdir -p /rescue || $Error
 
 cat << 'EOF' | tee /rescue/mk_portable_ip || $Error
 #!/bin/bash
