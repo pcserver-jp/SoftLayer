@@ -568,6 +568,8 @@ else
   fi
 fi
 
+mkdir -p /rescue || $Error
+
 if grep ' /disk' /etc/fstab; then
   sed -i -e '/ \/disk/d' /etc/fstab || $Error
   umount /disk{,0} || :
@@ -600,13 +602,8 @@ d
 p
 w
 EOF
-    cat << 'EOF' | tee /rescue/once || $Error
-#!/bin/bash
-resize2fs /dev/sda2
-rm -f /rescue/once
-EOF
     chmod 755 /rescue/once || $Error
-    fdisk -H 64 -S 32 /dev/sdb << 'EOF' || $Error
+    fdisk -H 64 -S 32 /dev/sdb << 'EOF' || :
 o
 n
 p
@@ -618,9 +615,15 @@ t
 p
 w
 EOF
-    mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/sdb1 || $Error
     cat << 'EOF' | tee -a /etc/fstab || $Error
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
+EOF
+    cat << 'EOF' | tee /rescue/once || $Error
+#!/bin/bash
+resize2fs /dev/sda2
+mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/sdb1
+swapon -a
+rm -f /rescue/once
 EOF
     if [ -e /dev/sdc -a ! -e /dev/sdc1 ]; then
       echo Yes | parted /dev/sdc mklabel msdos || $Error
@@ -699,8 +702,6 @@ if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
   done
 fi
 blkid
-
-mkdir -p /rescue || $Error
 
 cat << 'EOF' | tee /rescue/mk_portable_ip || $Error
 #!/bin/bash
