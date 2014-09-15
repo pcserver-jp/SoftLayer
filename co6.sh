@@ -263,7 +263,7 @@ EOF
 fi
 echo 'id:3:initdefault:' | tee /etc/inittab || $Error
 
-if [ -e /etc/modprobe.conf ];
+if [ -e /etc/modprobe.conf ]; then
   mv /etc/modprobe.conf /etc/modprobe.d/bonding.conf || $Error
 fi
 
