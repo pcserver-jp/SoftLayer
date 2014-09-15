@@ -572,6 +572,7 @@ else
 fi
 
 mkdir -p /rescue || $Error
+echo $MY_DC | tee /rescue/datacenter || $Error
 
 if grep ' /disk' /etc/fstab; then
   sed -i -e '/ \/disk/d' /etc/fstab || $Error
