@@ -27,7 +27,7 @@ set -x || $Error
 
 #http://knowledgelayer.softlayer.com/faq/what-ip-ranges-do-i-allow-through-firewall
 MY_DC=$(grep ^ssh- /root/.ssh/authorized_keys | head -1 |
-  sed -e 's/^ssh-[^ ]* [^ ]* \(.*@\([a-z0-9]*\)\)$/\2/')
+  sed -n -e 's/^ssh-[^ ]* [^ ]* \(.*@\([a-z0-9]*\)\)$/\2/p')
 case "$MY_DC" in
   "ams01" ) :;;
   "dal01" ) :;;
@@ -122,20 +122,20 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 COMMIT
 EOF
 case $MY_DC in
-  "ams01" ) sed -i -e 's/119\.81\.138/159.253.158/' -e 's/10\.2\.216/10.2.200/'  /etc/sysconfig/iptables || $Error;;
+  "ams01" ) sed -i -e 's/119\.81\.138/159.253.158/' -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables || $Error;;
   "dal01" ) sed -i -e 's/119\.81\.138/66.228.118/'  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables || $Error;;
-  "dal05" ) sed -i -e 's/119\.81\.138/173.192.118/' -e 's/10\.2\.216/10.1.24/'   /etc/sysconfig/iptables || $Error;;
-  "dal06" ) sed -i -e 's/119\.81\.138/184.172.118/' -e 's/10\.2\.216/10.2.208/'  /etc/sysconfig/iptables || $Error;;
-  "dal07" ) sed -i -e 's/119\.81\.138/50.22.118/'   -e 's/10\.2\.216/10.1.236/'  /etc/sysconfig/iptables || $Error;;
-# "hkg02" ) sed -i -e 's/119\.81\.138/119.81.138/'  -e 's/10\.2\.216/10.2.216/'  /etc/sysconfig/iptables || $Error;;
-  "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' -e 's/10\.2\.216/10.1.56/'   /etc/sysconfig/iptables || $Error;;
-  "lon01" ) sed -i -e 's/119\.81\.138/5.10.118/'    -e 's/10\.2\.216/10.2.220/'  /etc/sysconfig/iptables || $Error;;
-  "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'    -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables || $Error;;
-  "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  -e 's/10\.2\.216/10.1.8.0/'  /etc/sysconfig/iptables || $Error;;
-  "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   -e 's/10\.2\.216/10.1.224/'  /etc/sysconfig/iptables || $Error;;
-  "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' -e 's/10\.2\.216/10.2.192/'  /etc/sysconfig/iptables || $Error;;
-  "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  -e 's/10\.2\.216/10.1.232/'  /etc/sysconfig/iptables || $Error;;
-  "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  -e 's/10\.2\.216/10.1.16/'   /etc/sysconfig/iptables || $Error;;
+  "dal05" ) sed -i -e 's/119\.81\.138/173.192.118/' -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables || $Error;;
+  "dal06" ) sed -i -e 's/119\.81\.138/184.172.118/' -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables || $Error;;
+  "dal07" ) sed -i -e 's/119\.81\.138/50.22.118/'   -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables || $Error;;
+# "hkg02" ) sed -i -e 's/119\.81\.138/119.81.138/'  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables || $Error;;
+  "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables || $Error;;
+  "lon01" ) sed -i -e 's/119\.81\.138/5.10.118/'    -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables || $Error;;
+  "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'   -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables || $Error;;
+  "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables || $Error;;
+  "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables || $Error;;
+  "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables || $Error;;
+  "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables || $Error;;
+  "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables || $Error;;
 esac
 if ! ifconfig bond0 2> /dev/null; then
   sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables || $Error
@@ -505,7 +505,48 @@ cat << EOF | tee /etc/iscsi/initiatorname.iscsi || $Error
 InitiatorName=iqn.1994-05.com.redhat:$(uname -n | awk -F. '{print $1}')
 EOF
 
-cat << 'EOF' | tee /etc/ha.d/param || $Error
+cat << 'EOF' | tee /etc/drbd.d/global_common.conf
+global {
+  usage-count no;
+}
+common {
+  handlers {
+    local-io-error "/usr/lib/drbd/notify-io-error.sh; /usr/lib/drbd/notify-emergency-shutdown.sh; echo 1 > /proc/sys/kernel/sysrq; echo o > /proc/sysrq-trigger ; halt -f";
+    fence-peer "/usr/lib/drbd/crm-fence-peer.sh";
+    after-resync-target /usr/lib/drbd/crm-unfence-peer.sh;
+  }
+  startup {
+#wfc#    wfc-timeout 10;
+#wfc#    degr-wfc-timeout 10;
+#wfc#    outdated-wfc-timeout 10;
+  }
+  disk {
+    on-io-error detach;
+    fencing resource-only;
+    al-extents 6433;
+    c-plan-ahead 20;
+    c-delay-target 100;
+    c-fill-target 0;
+    c-max-rate 100M;
+    c-min-rate 1M;
+  }
+  net {
+    protocol C;
+    max-buffers 128k;
+    sndbuf-size 0;
+    rcvbuf-size 0;
+    cram-hmac-alg sha1;
+    shared-secret "password";
+    congestion-fill 100M;
+    congestion-extents 2000;
+    csums-alg md5;
+    verify-alg md5;
+    use-rle;
+  }
+}
+EOF
+
+cat << EOF | tee /etc/ha.d/param || $Error
 HA1_NAME=backup11.example.com
 HA2_NAME=backup12.example.com
 HA1_IP=
@@ -518,10 +559,15 @@ HA2_HB_NAME=backup12-hb.example.com
 HA1_HB_IP=192.168.0.2
 HA2_HB_IP=192.168.0.3
 
-NFS_CLIENTS=10.0.0.0/255.0.0.0
+MY_SL_ADMIN=$MY_SL_ADMIN
 
+DRBD_SIZE=90G
+NFS_CLIENTS=10.0.0.0/8
+
+EOF
+cat << 'EOF' | tee -a /etc/ha.d/param || $Error
 HA_NETWORK_123=$(echo $HA_VIP | awk -F. '{print $1 "." $2 "." $3}')
-HA_NETWORK_4=$(($(echo $HA_VIP | awk -F. '{print $4}')&~63))
+HA_NETWORK_4=$(($(echo $HA_VIP | awk -F. '{print $4}') & -64))
 HA_GATEWAY="$HA_NETWORK_123.$((HA_NETWORK_4+1))"
 [ -e /proc/net/bonding ] && NIC0=bond0 || NIC0=eth0
 [ -e /proc/net/bonding ] && NIC1=bond1 || NIC1=eth1
@@ -534,6 +580,358 @@ if [ ! -d /proc/xen/ ]; then
   lsmod | grep -q ^aacraid && HA_DEV1=sdc || HA_DEV1=sda
 fi
 EOF
+
+cat << 'EOF_NFSSERVER' | tee /etc/ha.d/mk_nfsserver || $Error
+#!/bin/bash
+. /etc/ha.d/param
+if [ ! "$HA_VIP" ]; then
+  echo; echo "You have not edited /etc/ha.d/param yet."
+  exit 1
+fi
+
+if [ ! -e /dev/vg0/drbd0 ]; then
+  lvcreate --name drbd0 --size $DRBD_SIZE vg0 || exit 1
+fi
+
+sed -i -e 's/^RPCIDMAPDARGS=.*$/RPCIDMAPDARGS="-S"/' /etc/sysconfig/nfs
+chmod -x /sbin/mount.nfs
+chmod -x /sbin/mount.nfs4
+
+sed -i -e "s/^IPADDR=.*\$/IPADDR=$PRIV_IP/" /etc/sysconfig/network-scripts/ifcfg-$NIC0
+sed -i -e "s/^IPADDR=.*\$/IPADDR=$PUB_IP/" /etc/sysconfig/network-scripts/ifcfg-$NIC1
+sed -i -e '/^GATEWAY=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC0
+sed -i -e '/^GATEWAY=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC1
+
+sed -i -e '/^MTU=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC0
+sed -i -e '/^MTU=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC1
+if [ ! -e /proc/xen ]; then
+  echo "MTU=9000" | tee -a /etc/sysconfig/network-scripts/ifcfg-$NIC0
+  echo "MTU=9000" | tee -a /etc/sysconfig/network-scripts/ifcfg-$NIC1
+fi
+sed -i -e "s/^GATEWAY=.*\$/GATEWAY=$HA_GATEWAY/" /etc/sysconfig/network
+rm -f /etc/sysconfig/network-scripts/route-$NIC0
+
+cat << EOF | tee /etc/hosts
+127.0.0.1       localhost.localdomain localhost
+$HA_GATEWAY     $HA_GATEWAY_NAME $(echo $HA_GATEWAY_NAME | awk -F. '{print $1}')
+$HA1_IP    $HA1_NAME $(echo $HA1_NAME | awk -F. '{print $1}')
+$HA2_IP    $HA2_NAME $(echo $HA2_NAME | awk -F. '{print $1}')
+$HA_VIP    $HA_NAME $(echo $HA_NAME | awk -F. '{print $1}')
+$HA1_HB_IP     $HA1_HB_NAME $(echo $HA1_HB_NAME | awk -F. '{print $1}')
+$HA2_HB_IP     $HA2_HB_NAME $(echo $HA2_HB_NAME | awk -F. '{print $1}')
+EOF
+
+/etc/init.d/network restart
+
+cat << EOF | tee /etc/sysconfig/iptables
+*filter
+:INPUT   ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT  ACCEPT [0:0]
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+########## Public VLAN (& Private VLAN) ##########
+-A INPUT -s $HA1_HB_IP,$HA2_HB_IP -j ACCEPT
+-A INPUT -i eth1  -j DROP
+-A INPUT -i eth3  -j DROP
+-A INPUT -i bond1 -j DROP
+########## Private VLAN ##########
+-A INPUT -s $HA1_IP,$HA2_IP -j ACCEPT
+-A INPUT -p tcp --dport 2049  -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 2049  -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 111   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 111   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 662   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 662   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 875   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 875   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 892   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 892   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 32803 -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s 10.2.216.0/24,10.2.225.0/24 -j ACCEPT
+-A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
+#-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+########## FORWARD ##########
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+COMMIT
+EOF
+MY_DC=$(cat /rescue/datacenter)
+case $MY_DC in
+  "ams01" ) sed -i  -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables || $Error;;
+  "dal01" ) sed -i  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables || $Error;;
+  "dal05" ) sed -i  -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables || $Error;;
+  "dal06" ) sed -i  -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables || $Error;;
+  "dal07" ) sed -i  -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables || $Error;;
+# "hkg02" ) sed -i  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables || $Error;;
+  "hou02" ) sed -i  -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables || $Error;;
+  "lon01" ) sed -i  -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables || $Error;;
+  "mel01" ) sed -i  -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables || $Error;;
+  "sea01" ) sed -i  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables || $Error;;
+  "sjc01" ) sed -i  -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables || $Error;;
+  "sng01" ) sed -i  -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables || $Error;;
+  "tor01" ) sed -i  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables || $Error;;
+  "wdc01" ) sed -i  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables || $Error;;
+esac
+if ! ifconfig bond0 2> /dev/null; then
+  sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables || $Error
+  sed -i -e '/bond1/ s/^/#/' /etc/sysconfig/iptables || $Error
+  sed -i -e '/eth2/  s/^/#/' /etc/sysconfig/iptables || $Error
+  sed -i -e '/eth3/  s/^/#/' /etc/sysconfig/iptables || $Error
+fi
+
+/etc/init.d/iptables restart
+
+if ! grep -q '^## DRBD ##$' /etc/sysctl.conf; then
+  cat << 'EOF' | tee -a /etc/sysctl.conf
+
+## DRBD ##
+net.core.wmem_max = 16777216
+net.core.rmem_max = 16777216
+net.core.wmem_default = 16777216
+net.core.rmem_default = 16777216
+net.core.netdev_max_backlog = 250000
+net.core.optmem_max = 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_sack = 0
+net.ipv4.tcp_no_metrics_save = 1
+EOF
+  sysctl -p
+fi
+
+sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.info                                             /var/log/ha-log' /etc/rsyslog.conf
+/etc/init.d/rsyslog restart
+
+cat << 'EOF' | tee /etc/logrotate.d/heartbeat
+
+EOF
+cat << 'EOF' | tee /etc/logrotate.d/syslog
+/var/log/cron
+/var/log/maillog
+/var/log/messages
+/var/log/ha-log
+/var/log/secure
+/var/log/spooler
+{
+    sharedscripts
+    postrotate
+        /bin/kill -HUP `cat /var/run/syslogd.pid 2> /dev/null` 2> /dev/null || true
+    endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/ha.d/authkeys
+auth 1
+1 crc
+EOF
+chmod 600 /etc/ha.d/authkeys
+cat << EOF | tee /etc/ha.d/ha.cf
+crm yes
+debug 0
+logfacility local1
+keepalive 2
+warntime 7
+deadtime 10
+initdead 48
+udpport 694
+ucast $NIC0 $PEER_PRIV_IP
+ucast $NIC1 $PEER_PUB_IP
+node $HA1_NAME
+node $HA2_NAME
+uuidfrom nodename
+autojoin none
+respawn root /usr/lib64/heartbeat/ifcheckd
+EOF
+
+NFS_CLIENTS=$(echo $NFS_CLIENTS | tr , " ")
+
+cat << EOF | tee /etc/ha.d/crm.txt
+primitive p_drbd_r0 ocf:linbit:drbd \\
+  params drbd_resource="r0" \\
+  op start   interval="0" timeout="240s" \\
+  op monitor interval="31s" enabled="true" role="Master" timeout="20s" \\
+  op monitor interval="29s" enabled="true" role="Slave"  timeout="20s" \\
+  op notify  interval="0" timeout="90s" \\
+  op stop    interval="0" timeout="120s" \\
+  op promote interval="0" timeout="90s" \\
+  op demote  interval="0" timeout="90s"
+primitive p_vipcheck ocf:heartbeat:VIPcheck \\
+  params target_ip="$HA_VIP" count="1" wait="10"  \\
+  op start interval="0" timeout="90s" start_delay="4s" \\
+  op stop  interval="0" timeout="60s"
+primitive p_vip ocf:heartbeat:IPaddr2 \\
+  params ip=$HA_VIP cidr_netmask=26 \\
+  op start   interval="0"   timeout="20" \\
+  op monitor interval="30s" timeout="20" \\
+  op stop    interval="0"   timeout="20"
+primitive p_fs_export ocf:heartbeat:Filesystem \\
+  params device=/dev/drbd0 directory=/export fstype=ext4 run_fsck="no" \\
+  op start   interval="0"   timeout="60s" \\
+  op monitor interval="10s" timeout="40s" \\
+  op stop    interval="0"   timeout="60s"
+primitive p_fs_nfs3 ocf:heartbeat:Filesystem \\
+  params device=/export/backup directory=/backup fstype=none options="bind" \\
+  op start   interval="0"   timeout="60s" \\
+  op monitor interval="10s" timeout="40s" \\
+  op stop    interval="0"   timeout="60s"
+primitive p_ping ocf:pacemaker:ping \\
+  params name="p_ping" host_list="$HA_GATEWAY" multiplier="1000" dampen="5s" \\
+  op start   interval="0"   timeout="60s" \\
+  op monitor interval="30s" timeout="60s" \\
+  op stop    interval="0"   timeout="20s"
+primitive p_diskd_root ocf:pacemaker:diskd \\
+        params name="p_diskd_root" write_dir="/tmp" interval="10" \\
+        op start   interval="0"   timeout="60s" \\
+        op monitor interval="10s" timeout="60s" \\
+        op stop    interval="0"   timeout="60s"
+primitive p_diskd_share1 ocf:pacemaker:diskd \\
+        params name="p_diskd_share1" device="/dev/$HA_DEV1" interval="10" \\
+        op start   interval="0"   timeout="60s" \\
+        op monitor interval="10s" timeout="60s" \\
+        op stop    interval="0"   timeout="60s"
+primitive p_rpcbind lsb:rpcbind \\
+  op monitor interval="30s"
+primitive p_nfslock lsb:nfslock \\
+  op monitor interval="30s"
+primitive p_nfsserver lsb:nfs \\
+  op monitor interval="30s"
+primitive p_exp_root ocf:heartbeat:exportfs \\
+  params fsid="0" directory="/export" \\
+  options="rw,sync,crossmnt" \\
+  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  op start interval="0" timeout="240s" \\
+  op stop  interval="0" timeout="100s"
+primitive p_exp_backup ocf:heartbeat:exportfs \\
+  params fsid="1" directory="/export/backup" \\
+  options="rw,sync,mountpoint" \\
+  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  op start   interval="0"   timeout="240s" \\
+  op monitor interval="30s" \\
+  op stop    interval="0"   timeout="100s" \\
+  meta is-managed="true"
+primitive p_exp_nfs3 ocf:heartbeat:exportfs \\
+  params fsid="2" directory="/backup" \\
+  options="rw,sync" \\
+  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  op start   interval="0"   timeout="240s" \\
+  op monitor interval="30s" \\
+  op stop    interval="0"   timeout="100s" \\
+  meta is-managed="true"
+group g_nfs p_vipcheck p_fs_export p_fs_nfs3 p_rpcbind p_nfslock p_nfsserver p_exp_root p_exp_backup p_exp_nfs3 p_vip
+ms ms_drbd_r0 p_drbd_r0 \\
+  meta master-max="1" master-node-max="1" clone-max="2" \\
+  clone-node-max="1" notify="true" target-role="Started" \\
+  is-managed="true"
+clone cl_ping p_ping
+clone cl_diskd_share1 p_diskd_share1
+clone cl_diskd_root p_diskd_root
+location lc_nfs g_nfs 100: $HA1_NAME
+location lc_ping_disk g_nfs \\
+  rule \$id="lc_ping_disk-rule" 100: #uname eq $HA1_NAME \\
+  rule \$id="lc_ping_disk-rule-1" -inf: defined p_ping and p_ping lt 100 \\
+  rule \$id="lc_ping_disk-rule-2" -inf: defined p_diskd_root and p_diskd_root eq ERROR \\
+  rule \$id="lc_ping_disk-rule-3" -inf: defined p_diskd_share1 and p_diskd_share1 eq ERROR
+colocation cl_nfs inf: g_nfs ms_drbd_r0:Master
+order ord_nfs 0: ms_drbd_r0:promote g_nfs:start
+property stonith-enabled="false"
+property no-quorum-policy="ignore"
+property pe-error-series-max="100"
+property pe-warn-series-max="100"
+property pe-input-series-max="100"
+rsc_defaults migration-threshold="2"
+rsc_defaults resource-stickiness="200"
+EOF
+
+cat << EOF | tee /etc/drbd.d/r0.res
+resource r0 {
+  volume 0 {
+    device /dev/drbd0;
+    disk /dev/vg0/drbd0;
+    meta-disk internal;
+  }
+  on $HA1_NAME {
+    address $HA1_HB_IP:7788;
+  }
+  on $HA2_NAME {
+    address $HA2_HB_IP:7788;
+  }
+}
+EOF
+#dd if=/dev/zero of=/dev/vg0/drbd0 bs=1M
+echo yes | drbdadm wipe-md r0 || exit 1
+echo yes | drbdadm create-md r0 || exit 1
+if [ "$HA1_NAME" = "$(uname -n)" ]; then
+  sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf
+  /etc/init.d/drbd start
+  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
+#  drbdadm new-current-uuid --clear-bitmap r0/0
+#  drbdadm primary all
+  drbdadm primary --force all
+  mkfs.ext4 /dev/drbd0
+  tune2fs -c 0 -i 0 /dev/drbd0
+  mkdir -p /export
+  mkdir -p /backup
+  mkdir -p /var/lib/rpc_pipefs/
+  mount /dev/drbd0 /export
+  /etc/init.d/rpcbind start
+  /etc/init.d/nfslock start
+  /etc/init.d/nfs start
+  /etc/init.d/nfs stop
+  /etc/init.d/nfslock stop
+  /etc/init.d/rpcbind stop
+  umount /var/lib/nfs/rpc_pipefs/
+  mv /var/lib/nfs /export/
+  ln -s /export/nfs /var/lib/nfs
+  rmdir /export/nfs/rpc_pipefs/
+  ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs
+  tar czvf /tmp/sshd.tgz /etc/ssh
+  mkdir -p /export/backup/system
+  chmod 700 /export/backup/system
+  chown -R nfsnobody:nfsnobody /export/backup
+
+  umount /export/
+  drbdadm secondary all
+  /etc/init.d/drbd stop
+  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
+  /etc/init.d/heartbeat start
+  while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
+  crm configure load update /etc/ha.d/crm.txt
+  while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 1; done
+  echo "Next is on $HA2_NAME, and execute $0 $1"
+elif [ "$HA2_NAME" = "$(uname -n)" ]; then
+  mkdir -p /export
+  mkdir -p /backup
+  mkdir -p /var/lib/rpc_pipefs/
+  rm -rf /var/lib/nfs
+  ln -s /export/nfs /var/lib/nfs
+  scp -o StrictHostKeyChecking=no    $MY_SL_ADMIN@$HA1_NAME:/tmp/sshd.tgz /tmp/
+  ssh -o StrictHostKeyChecking=no -t $MY_SL_ADMIN@$HA1_NAME sudo rm -f /tmp/sshd.tgz
+  tar xzvf /tmp/sshd.tgz -C /
+  rm -f /tmp/sshd.tgz
+  /etc/init.d/sshd restart
+  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
+  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
+  /etc/init.d/heartbeat start
+  crm_mon -frA
+else
+  echo; echo "You have not edited /etc/ha.d/param correctly."
+  exit 1
+fi
+EOF_NFSSERVER
+chmod 755 /etc/ha.d/mk_nfsserver
+
+
+
+
+
+
+
+
+
 
 if grep -q -v ^# /etc/cron.d/raid-check; then
   sed -i -e 's/^/#/' /etc/cron.d/raid-check || $Error
@@ -783,6 +1181,20 @@ mount -o ro,remount /dev/${DEV}2 /mnt/sysimage/
 umount /backup
 EOF
 chmod 755 /rescue/unmount || $Error
+
+cat << 'EOF' | tee /rescue/backup
+#!/bin/bash
+if [ "$1" = "" ]; then
+  echo Usage: $0  nfsserver_ip
+  exit 1
+fi
+if [ -e /proc/xen ]; then
+  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') ks=nfs:$1:/backup/ks/$(uname -n).cfg%" /boot/grub/grub.conf && reboot
+else
+  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 ks=nfs:$1:/backup/ks/$(uname -n).cfg" && reboot
+fi
+EOF
+chmod 755 /rescue/backup
 
 cat << 'EOF' | tee /rescue/mk_offload_off || $Error
 for i in eth0 eth1 eth2 eth3 bond0 bond1
