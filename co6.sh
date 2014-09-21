@@ -317,6 +317,17 @@ d
 p
 w
 EOF
+  pushd / || $Error
+  tar czvf /boot.tgz boot || $Error
+  umount /boot || $Error
+  mkfs.ext4 -L boot -U 7e70ca17-3016-4b92-8542-615d909115f9 /dev/sda1 || $Error
+  tune2fs -c 0 -i 0 /dev/sda1 || $Error
+  sed -i -e '/ \/boot /d' /etc/fstab || $Error
+  echo 'UUID=7e70ca17-3016-4b92-8542-615d909115f9 /boot ext4    defaults        1 2' | tee -a /etc/fstab || $Error
+  mount -a || $Error
+  tar xzvf /boot.tgz || $Error
+  rm -f /boot.tgz || $Error
+  grub-install /dev/sda || $Error
   if lsmod | grep -q ^aacraid; then
     fdisk -H 64 -S 32 /dev/sdb << 'EOF' || :
 o
@@ -389,6 +400,16 @@ EOF
   fi
 fi
 if grep ^LABEL= /etc/fstab; then
+  pushd / || $Error
+  tar czvf /boot.tgz boot || $Error
+  umount /boot || $Error
+  mkfs.ext4 -L boot -U 7e70ca17-3016-4b92-8542-615d909115f9 /dev/xvda1 || $Error
+  tune2fs -c 0 -i 0 /dev/xvda1 || $Error
+  sed -i -e '/ \/boot /d' /etc/fstab || $Error
+  echo 'UUID=7e70ca17-3016-4b92-8542-615d909115f9 /boot ext4    defaults        1 2' | tee -a /etc/fstab || $Error
+  mount -a || $Error
+  tar xzvf /boot.tgz || $Error
+  rm -f /boot.tgz || $Error
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
   swapoff /dev/xvdb1 || $Error
   fdisk -H 64 -S 32 /dev/xvdb << 'EOF' || :
