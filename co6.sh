@@ -125,6 +125,7 @@ netstat -anp || $Error
 echo --------------------------------------------------------------------------------
 for i in eth0 eth1 eth2 eth3 bond0 bond1
 do
+  ifconfig $i > /dev/null 2>&1 || break
   for j in "" --show-pause --show-coalesce --show-ring --driver --register-dump --eeprom-dump --show-features --show-permaddr --statistics --show-nfc --get-dump --show-time-stamping --show-rxfh-indir --show-channels --dump-module-eeprom --show-priv-flags --show-eee
   do
     echo --------------------------------------------------------------------------------
@@ -132,9 +133,9 @@ do
   done;
 done
 echo --------------------------------------------------------------------------------
-cat /proc/net/bonding/bond0 2> /dev/null || :
+[ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0
 echo --------------------------------------------------------------------------------
-cat /proc/net/bonding/bond1 2> /dev/null || :
+[ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1
 echo --------------------------------------------------------------------------------
 cat /etc/resolv.conf || $Error
 cat /etc/nsswitch.conf || $Error
@@ -276,6 +277,13 @@ fdisk -l || $Error
 parted -l || $Error
 lsmod | sort || $Error
 dmidecode || $Error
+cat /proc/cpuinfo || $Error
+cat /proc/meminfo || $Error
+cat /proc/cmdline || $Error
+uname -a || $Error
+w || $Error
+sysctl -a || $Error
+sysctl -p || $Error
 ps -ef || $Error
 chkconfig --list || $Error
 if grep ' /disk' /etc/fstab; then
@@ -284,8 +292,7 @@ if grep ' /disk' /etc/fstab; then
   rmdir /disk{,0} || :
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
   swapoff /dev/sda3 || $Error
-  if lsmod | grep -q ^aacraid; then
-    fdisk /dev/sda << 'EOF' || :
+  fdisk /dev/sda << 'EOF' || :
 u
 d
 5
@@ -310,7 +317,7 @@ d
 p
 w
 EOF
-    chmod 755 /rescue/once || $Error
+  if lsmod | grep -q ^aacraid; then
     fdisk -H 64 -S 32 /dev/sdb << 'EOF' || :
 o
 n
@@ -323,16 +330,17 @@ t
 p
 w
 EOF
-    cat << 'EOF' | tee -a /etc/fstab || $Error
-UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
-EOF
     cat << 'EOF' | tee /rescue/once || $Error
 #!/bin/bash
 resize2fs /dev/sda2
 mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/sdb1
+cat << 'EOF_FSTAB' | tee -a /etc/fstab
+UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
+EOF_FSTAB
 swapon -a
 rm -f /rescue/once
 EOF
+    chmod 755 /rescue/once || $Error
     if [ -e /dev/sdc -a ! -e /dev/sdc1 ]; then
       echo Yes | parted /dev/sdc mklabel msdos || $Error
       dd if=/dev/zero of=/dev/sdc bs=1M count=1 || $Error
@@ -342,34 +350,38 @@ EOF
       for i in d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
-        echo Yes | parted /dev/sd$i mklabel msdos || $Error
+        echo Yes | parted /dev/sd$i mklabel msdos || :
         dd if=/dev/zero of=/dev/sd$i bs=1M count=1 || $Error
         echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-        vgextend vg0 /dev/sd${i}1 || $Error
+        vgextend vg0 /dev/sd${i}1 || :
       done
     fi
   else
-    mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/sda3 || $Error
-    cat << 'EOF' | tee -a /etc/fstab || $Error
-UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
+    cat << 'EOF' | tee /rescue/once || $Error
+#!/bin/bash
+resize2fs /dev/sda2
+dd if=/dev/zero of=/.swap bs=1M count=2048
+mkswap -f -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /.swap
+cat << 'EOF_FSTAB' | tee -a /etc/fstab
+/.swap                                    swap  swap    pri=0,defaults  0 0
+EOF_FSTAB
+swapon -a
+rm -f /rescue/once
 EOF
-    fdisk /dev/sda << 'EOF' || :
-t
-5
-fd
-p
-w
-EOF
-    pvcreate /dev/sda5 || $Error
-    vgcreate -s 32M vg0 /dev/sda5 || $Error
+    chmod 755 /rescue/once || $Error
     if [ -e /dev/sdb -a ! -e /dev/sdb1 ]; then
-      for i in b c d e f g h i j k l m n o p q r s t u v w x y z
+      echo Yes | parted /dev/sdb mklabel msdos || $Error
+      dd if=/dev/zero of=/dev/sdb bs=1M count=1 || $Error
+      echo Yes | parted /dev/sdb mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
+      pvcreate /dev/sdb1 || $Error
+      vgcreate -s 32M vg0 /dev/sdb1 || $Error
+      for i in c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
-        echo Yes | parted /dev/sd$i mklabel msdos || $Error
+        echo Yes | parted /dev/sd$i mklabel msdos || :
         dd if=/dev/zero of=/dev/sd$i bs=1M count=1 || $Error
         echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-        vgextend vg0 /dev/sd${i}1 || $Error
+        vgextend vg0 /dev/sd${i}1 || :
       done
     fi
   fi
@@ -389,10 +401,16 @@ t
 p
 w
 EOF
-  mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/xvdb1 || $Error
-  cat << 'EOF' | tee -a /etc/fstab || $Error
+  cat << 'EOF' | tee /rescue/once || $Error
+#!/bin/bash
+mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/xvdb1
+cat << 'EOF_FSTAB' | tee -a /etc/fstab
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
+EOF_FSTAB
+swapon -a
+rm -f /rescue/once
 EOF
+  chmod 755 /rescue/once || $Error
 fi
 if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
   echo Yes | parted /dev/xvdc mklabel msdos || $Error
@@ -400,7 +418,7 @@ if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
   echo Yes | parted /dev/xvdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
   pvcreate /dev/xvdc1 || $Error
   vgcreate -s 32M vg0 /dev/xvdc1 || $Error
-  for i in d e f g h i j k l m n o p q r s t u v w x y z
+  for i in d e f
   do
     [ -e /dev/xvd$i ] || break
     echo Yes | parted /dev/xvd$i mklabel msdos || $Error
@@ -509,7 +527,7 @@ EOF
 chmod 755 /rescue/backup || $Error
 
 cat /etc/securetty || $Error
-cat << 'EOF' | sudo tee /etc/securetty || $Error
+cat << 'EOF' | tee /etc/securetty || $Error
 console
 vc/1
 vc/2
@@ -952,26 +970,26 @@ COMMIT
 EOF
 MY_DC=$(cat /rescue/datacenter)
 case $MY_DC in
-  "ams01" ) sed -i  -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables || $Error;;
-  "dal01" ) sed -i  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables || $Error;;
-  "dal05" ) sed -i  -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables || $Error;;
-  "dal06" ) sed -i  -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables || $Error;;
-  "dal07" ) sed -i  -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables || $Error;;
-# "hkg02" ) sed -i  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables || $Error;;
-  "hou02" ) sed -i  -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables || $Error;;
-  "lon02" ) sed -i  -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables || $Error;;
-  "mel01" ) sed -i  -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables || $Error;;
-  "sea01" ) sed -i  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables || $Error;;
-  "sjc01" ) sed -i  -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables || $Error;;
-  "sng01" ) sed -i  -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables || $Error;;
-  "tor01" ) sed -i  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables || $Error;;
-  "wdc01" ) sed -i  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables || $Error;;
+  "ams01" ) sed -i  -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables;;
+  "dal01" ) sed -i  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables;;
+  "dal05" ) sed -i  -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables;;
+  "dal06" ) sed -i  -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables;;
+  "dal07" ) sed -i  -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables;;
+# "hkg02" ) sed -i  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables;;
+  "hou02" ) sed -i  -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables;;
+  "lon02" ) sed -i  -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables;;
+  "mel01" ) sed -i  -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables;;
+  "sea01" ) sed -i  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables;;
+  "sjc01" ) sed -i  -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables;;
+  "sng01" ) sed -i  -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables;;
+  "tor01" ) sed -i  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables;;
+  "wdc01" ) sed -i  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables;;
 esac
 if ! ifconfig bond0 2> /dev/null; then
-  sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables || $Error
-  sed -i -e '/bond1/ s/^/#/' /etc/sysconfig/iptables || $Error
-  sed -i -e '/eth2/  s/^/#/' /etc/sysconfig/iptables || $Error
-  sed -i -e '/eth3/  s/^/#/' /etc/sysconfig/iptables || $Error
+  sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables
+  sed -i -e '/bond1/ s/^/#/' /etc/sysconfig/iptables
+  sed -i -e '/eth2/  s/^/#/' /etc/sysconfig/iptables
+  sed -i -e '/eth3/  s/^/#/' /etc/sysconfig/iptables
 fi
 /etc/init.d/iptables restart
 
@@ -995,7 +1013,7 @@ EOF
   sysctl -p
 fi
 
-cat << EOF | tee /etc/drbd.d/global_common.conf || $Error
+cat << EOF | tee /etc/drbd.d/global_common.conf
 global {
   usage-count no;
 }
