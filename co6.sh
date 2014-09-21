@@ -542,7 +542,7 @@ if [ "$1" = "" ]; then
   echo Usage: $0  nfsserver_ip_address
   exit 1
 fi
-if [ -e /proc/xen ]; then
+if [ -d /proc/xen/ ]; then
   sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') ks=nfs:$1:/backup/ks/$(uname -n).cfg%" /boot/grub/grub.conf && reboot
 else
   kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 ks=nfs:$1:/backup/ks/$(uname -n).cfg biosdevname=0 nomodeset pcie_aspm=off" && reboot
@@ -1027,7 +1027,7 @@ if [ "$INIT_MODE" = "SLAVE" ]; then
     echo; echo "No Active node: $HA_VIP"
     exit 1
   fi
-  if ! arp -a | grep "($HA_VIP)"; then
+  if ip addr show | grep -q " $HA_VIP/"; then
     echo "$(uname -n) is Active host"
     exit 1
   fi
@@ -1380,7 +1380,6 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   mkdir -p /export$NFS_EXPORT_POINT/system
   chmod 700 /export$NFS_EXPORT_POINT/system
   chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT
-
   umount /export/
   drbdadm secondary all
   /etc/init.d/drbd stop
@@ -1389,6 +1388,16 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
   crm configure load update /etc/ha.d/nfsserver_for_backup.txt
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 1; done
+  mkdir -p /backup/ks
+  chmod 700 /backup/ks
+  mkdir -p /backup/co605/images
+  chmod -R 700 /backup/co605
+  wget http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso
+  mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt
+  cp /mnt/images/{install.img,updates.img} /backup/co605/images/
+  umount /mnt
+
+
   echo; echo "Next is on $HA2_NAME, and execute $0 $1"
 elif [ "$INIT_MODE" = "SLAVE" ]; then
   mkdir -p /export
