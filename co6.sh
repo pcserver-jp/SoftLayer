@@ -342,8 +342,8 @@ rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdc -a ! -e /dev/sdc1 ]; then
-      echo Yes | parted /dev/sdc mklabel msdos || $Error
-      dd if=/dev/zero of=/dev/sdc bs=1M count=1 || $Error
+      echo Yes | parted /dev/sdc mklabel msdos || :
+      dd if=/dev/zero of=/dev/sdc bs=1M count=10 || $Error
       echo Yes | parted /dev/sdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
       pvcreate /dev/sdc1 || $Error
       vgcreate -s 32M vg0 /dev/sdc1 || $Error
@@ -351,8 +351,9 @@ EOF
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=1 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
         echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
+        pvcreate /dev/sd${i}1 || $Error
         vgextend vg0 /dev/sd${i}1 || :
       done
     fi
@@ -370,8 +371,8 @@ rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdb -a ! -e /dev/sdb1 ]; then
-      echo Yes | parted /dev/sdb mklabel msdos || $Error
-      dd if=/dev/zero of=/dev/sdb bs=1M count=1 || $Error
+      echo Yes | parted /dev/sdb mklabel msdos || :
+      dd if=/dev/zero of=/dev/sdb bs=1M count=10 || $Error
       echo Yes | parted /dev/sdb mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
       pvcreate /dev/sdb1 || $Error
       vgcreate -s 32M vg0 /dev/sdb1 || $Error
@@ -379,8 +380,9 @@ EOF
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=1 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
         echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
+        pvcreate /dev/sd${i}1 || $Error
         vgextend vg0 /dev/sd${i}1 || :
       done
     fi
@@ -413,17 +415,18 @@ EOF
   chmod 755 /rescue/once || $Error
 fi
 if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
-  echo Yes | parted /dev/xvdc mklabel msdos || $Error
-  dd if=/dev/zero of=/dev/xvdc bs=1M count=1 || $Error
+  echo Yes | parted /dev/xvdc mklabel msdos || :
+  dd if=/dev/zero of=/dev/xvdc bs=1M count=10 || $Error
   echo Yes | parted /dev/xvdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
   pvcreate /dev/xvdc1 || $Error
   vgcreate -s 32M vg0 /dev/xvdc1 || $Error
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
-    echo Yes | parted /dev/xvd$i mklabel msdos || $Error
-    dd if=/dev/zero of=/dev/xvd$i bs=1M count=1 || $Error
+    echo Yes | parted /dev/xvd$i mklabel msdos || :
+    dd if=/dev/zero of=/dev/xvd$i bs=1M count=10 || $Error
     echo Yes | parted /dev/xvd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
+    pvcreate /dev/xvd${i}1 || $Error
     vgextend vg0 /dev/xvd${i}1 || $Error
   done
 fi
