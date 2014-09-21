@@ -487,7 +487,7 @@ if ! grep -q ' selinux=0 ' /boot/grub/grub.conf; then
     cat << EOF | tee -a /boot/grub/grub.conf || $Error
 title Rescue
 ^root (hd0,0)
-^kernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 biosdevname=0 nomount sshd=1 ksdevice=eth0 ip=$IP0 netmask=$GATEWAY0 gateway=$GATEWAY0 dns=$DNS0
+^kernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 biosdevname=0 nomount sshd=1 ksdevice=eth0 ip=$IP0 netmask=255.255.255.192 gateway=$GATEWAY0 dns=$DNS0
 ^initrd /initrd.img
 EOF
     sed -i -e 's/^^/\t/g' /boot/grub/grub.conf || $Error
@@ -771,6 +771,8 @@ yum -y install \
 
 yum -y --enablerepo=epel install \
  bash-completion \
+ fio \
+ lsyncd \
  pv || $Error
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
@@ -843,7 +845,7 @@ RQUOTAD_PORT=875
 LOCKD_TCPPORT=32803
 LOCKD_UDPPORT=32769
 RPCNFSDARGS="-N 2"
-#RPCNFSDCOUNT=8
+RPCNFSDCOUNT=16
 #NFSD_MODULE="noload"
 #NFSD_V4_GRACE=90
 #RPCMOUNTDOPTS=""
@@ -904,9 +906,10 @@ DRBD_PASSWORD=password
 NFS_CLIENTS=10.0.0.0/8
 
 NFS_EXPORT_POINT=/backup
-
 EOF
-cat << 'EOF' | tee -a /etc/ha.d/param_nfsserver_for_backup || $Error
+
+cat << 'EOF' | tee /etc/ha.d/param_all_nfsserver_for_backup || $Error
+. /etc/ha.d/param_nfsserver_for_backup
 HA_NETWORK_123=$(echo $HA_VIP | awk -F. '{print $1 "." $2 "." $3}')
 HA_NETWORK_4=$(($(echo $HA_VIP | awk -F. '{print $4}') & -64))
 HA_GATEWAY="$HA_NETWORK_123.$((HA_NETWORK_4+1))"
@@ -920,14 +923,89 @@ HA_DEV1=xvdc
 if [ ! -d /proc/xen/ ]; then
   lsmod | grep -q ^aacraid && HA_DEV1=sdc || HA_DEV1=sda
 fi
+:
 EOF
 
 cat << 'EOF_NFSSERVER_FOR_BACKUP' | tee /etc/ha.d/mk_nfsserver_for_backup || $Error
 #!/bin/bash
-. /etc/ha.d/param_nfsserver_for_backup
+if [ "$(id)" != "$(id root)" ]; then
+  $Error : no root user
+  exit 1
+fi
+. /etc/ha.d/param_all_nfsserver_for_backup
+if [ $? -ne 0 ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA1_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA2_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA1_IP" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA2_IP" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
 if [ ! "$HA_VIP" ]; then
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
   exit 1
+fi
+if [ ! "$HA_GATEWAY_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA1_HB_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA2_HB_NAME" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA1_HB_IP" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$HA2_HB_IP" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$MY_SL_ADMIN" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$DRBD_SIZE" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$DRBD_PASSWORD" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$NFS_CLIENTS" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+if [ ! "$NFS_EXPORT_POINT" ]; then
+  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  exit 1
+fi
+set -x
+if [ "$1" != nohup ]; then
+  nohup $0 nohup > mk_nfsserver_for_backup.log 2>&1 &
+  chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
+  exit 0
 fi
 
 if [ ! -e /dev/vg0/drbd0 ]; then
@@ -945,6 +1023,9 @@ sed -i -e '/^GATEWAY=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC1
 
 sed -i -e "s/^GATEWAY=.*\$/GATEWAY=$HA_GATEWAY/" /etc/sysconfig/network
 rm -f /etc/sysconfig/network-scripts/route-$NIC0
+
+sed -i -e "s/ip=[0-9.]* /ip=$PRIV_IP /" /boot/grub/grub.conf
+sed -i -e "s/gateway=[0-9.]* /gateway=$HA_GATEWAY /" /boot/grub/grub.conf
 
 cat << EOF | tee /etc/hosts
 127.0.0.1       localhost.localdomain localhost
