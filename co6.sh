@@ -929,7 +929,7 @@ EOF
 cat << 'EOF_NFSSERVER_FOR_BACKUP' | tee /etc/ha.d/mk_nfsserver_for_backup || $Error
 #!/bin/bash
 if [ "$(id)" != "$(id root)" ]; then
-  $Error : no root user
+  echo; echo "You are not root user."
   exit 1
 fi
 . /etc/ha.d/param_all_nfsserver_for_backup
@@ -1000,6 +1000,37 @@ fi
 if [ ! "$NFS_EXPORT_POINT" ]; then
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
   exit 1
+fi
+if [ "$(uname -n)" = "$HA1_NAME" ]; then
+  if ping -c 1 $HA_NAME; then
+    INIT_MODE=SLAVE
+  elif ping -c 1 $HA_NAME; then
+    INIT_MODE=SLAVE
+  elif ping -c 1 $HA_NAME; then
+    INIT_MODE=SLAVE
+  else
+    INIT_MODE=MASTER
+  fi
+elif [ "$(uname -n)" = "$HA2_NAME" ]; then
+  if ping -c 1 $HA_NAME; then
+    INIT_MODE=SLAVE
+  else
+    echo; echo "No Active node: $HA_NAME"
+    exit 1
+  fi
+else
+  echo; echo "Mismatch hostname: $(uname -n) / $HA1_NAME / $HA2_NAME"
+  exit 1
+fi
+if [ "$INIT_MODE" = "SLAVE" ]; then
+  if ! ping -c 1 $HA_VIP; then
+    echo; echo "No Active node: $HA_VIP"
+    exit 1
+  fi
+  if ! arp -a | grep "($HA_VIP)"; then
+    echo "$(uname -n) is Active host"
+    exit 1
+  fi
 fi
 set -x
 if [ "$1" != nohup ]; then
@@ -1321,7 +1352,7 @@ EOF
 #dd if=/dev/zero of=/dev/vg0/drbd0 bs=1M
 echo yes | drbdadm wipe-md r0 || exit 1
 echo yes | drbdadm create-md r0 || exit 1
-if [ "$HA1_NAME" = "$(uname -n)" ]; then
+if [ "$INIT_MODE" = "MASTER" ]; then
   sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf
   /etc/init.d/drbd start
   sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
@@ -1345,7 +1376,7 @@ if [ "$HA1_NAME" = "$(uname -n)" ]; then
   ln -s /export/nfs /var/lib/nfs
   rmdir /export/nfs/rpc_pipefs/
   ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs
-  tar czvf /tmp/sshd.tgz /etc/ssh
+  tar czvf /etc/ha.d/sshd.tgz /etc/ssh
   mkdir -p /export$NFS_EXPORT_POINT/system
   chmod 700 /export$NFS_EXPORT_POINT/system
   chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT
@@ -1358,17 +1389,15 @@ if [ "$HA1_NAME" = "$(uname -n)" ]; then
   while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
   crm configure load update /etc/ha.d/nfsserver_for_backup.txt
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 1; done
-  echo "Next is on $HA2_NAME, and execute $0 $1"
-elif [ "$HA2_NAME" = "$(uname -n)" ]; then
+  echo; echo "Next is on $HA2_NAME, and execute $0 $1"
+elif [ "$INIT_MODE" = "SLAVE" ]; then
   mkdir -p /export
   mkdir -p $NFS_EXPORT_POINT
   mkdir -p /var/lib/rpc_pipefs/
   rm -rf /var/lib/nfs
   ln -s /export/nfs /var/lib/nfs
-  scp -o StrictHostKeyChecking=no    $MY_SL_ADMIN@$HA1_NAME:/tmp/sshd.tgz /tmp/
-  ssh -o StrictHostKeyChecking=no -t $MY_SL_ADMIN@$HA1_NAME sudo rm -f /tmp/sshd.tgz
+  scp -o StrictHostKeyChecking=no $MY_SL_ADMIN@$HA1_NAME:/etc/ha.d/sshd.tgz /etc/ha.d/
   tar xzvf /tmp/sshd.tgz -C /
-  rm -f /tmp/sshd.tgz
   /etc/init.d/sshd restart
   sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
   rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
