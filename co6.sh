@@ -84,8 +84,8 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -i eth3  -j DROP
 -A INPUT -i bond1 -j DROP
 ########## Private VLAN ##########
--A INPUT -p tcp --dport 22  -m tcp -m state --state NEW -s 10.2.216.0/24,10.2.225.0/24 -j ACCEPT
--A INPUT -p icmp                                        -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p tcp  --dport 22  -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p icmp                                         -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
@@ -99,20 +99,20 @@ if ! ifconfig bond0 > /dev/null 2>&1; then
   sed -i -e '/eth3/  s/^/#/' /etc/sysconfig/iptables || $Error
 fi
 case $MY_DC in
-  "ams01" ) sed -i -e 's/119\.81\.138/159.253.158/' -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables || $Error;;
-  "dal01" ) sed -i -e 's/119\.81\.138/66.228.118/'  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables || $Error;;
-  "dal05" ) sed -i -e 's/119\.81\.138/173.192.118/' -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables || $Error;;
-  "dal06" ) sed -i -e 's/119\.81\.138/184.172.118/' -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables || $Error;;
-  "dal07" ) sed -i -e 's/119\.81\.138/50.22.118/'   -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables || $Error;;
-# "hkg02" ) sed -i -e 's/119\.81\.138/119.81.138/'  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables || $Error;;
-  "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables || $Error;;
-  "lon02" ) sed -i -e 's/119\.81\.138/5.10.118/'    -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables || $Error;;
-  "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'   -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables || $Error;;
-  "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables || $Error;;
-  "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables || $Error;;
-  "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables || $Error;;
-  "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables || $Error;;
-  "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables || $Error;;
+  "ams01" ) sed -i -e 's/119\.81\.138/159.253.158/' /etc/sysconfig/iptables || $Error;;
+  "dal01" ) sed -i -e 's/119\.81\.138/66.228.118/'  /etc/sysconfig/iptables || $Error;;
+  "dal05" ) sed -i -e 's/119\.81\.138/173.192.118/' /etc/sysconfig/iptables || $Error;;
+  "dal06" ) sed -i -e 's/119\.81\.138/184.172.118/' /etc/sysconfig/iptables || $Error;;
+  "dal07" ) sed -i -e 's/119\.81\.138/50.22.118/'   /etc/sysconfig/iptables || $Error;;
+# "hkg02" ) sed -i -e 's/119\.81\.138/119.81.138/'  /etc/sysconfig/iptables || $Error;;
+  "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' /etc/sysconfig/iptables || $Error;;
+  "lon02" ) sed -i -e 's/119\.81\.138/5.10.118/'    /etc/sysconfig/iptables || $Error;;
+  "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'   /etc/sysconfig/iptables || $Error;;
+  "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  /etc/sysconfig/iptables || $Error;;
+  "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   /etc/sysconfig/iptables || $Error;;
+  "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' /etc/sysconfig/iptables || $Error;;
+  "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  /etc/sysconfig/iptables || $Error;;
+  "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  /etc/sysconfig/iptables || $Error;;
 esac
 /etc/init.d/iptables restart || $Error
 iptables -nvL || $Error
@@ -899,6 +899,7 @@ HA1_HB_IP=192.168.0.2
 HA2_HB_IP=192.168.0.3
 
 MY_SL_ADMIN=$MY_SL_ADMIN
+SSH_CLIENTS=10.0.0.0/8
 
 DRBD_SIZE=90G
 DRBD_PASSWORD=password
@@ -919,6 +920,7 @@ HA_GATEWAY="$HA_NETWORK_123.$((HA_NETWORK_4+1))"
 [ "$(uname -n)" = "$HA1_NAME" ] && PUB_IP=$HA1_HB_IP || PUB_IP=$HA2_HB_IP
 [ "$(uname -n)" = "$HA1_NAME" ] && PEER_PRIV_IP=$HA2_IP || PEER_PRIV_IP=$HA1_IP
 [ "$(uname -n)" = "$HA1_NAME" ] && PEER_PUB_IP=$HA2_HB_IP || PEER_PUB_IP=$HA1_HB_IP
+[ "$SSH_CLIENTS" = "10.0.0.0/8" ] || SSH_CLIENTS="$SSH_CLIENTS,$HA1_IP,$HA2_IP,$HA_VIP"
 HA_DEV1=xvdc
 if [ ! -d /proc/xen/ ]; then
   lsmod | grep -q ^aacraid && HA_DEV1=sdc || HA_DEV1=sda
@@ -1096,7 +1098,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p udp --dport 892   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p tcp --dport 32803 -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s 10.2.216.0/24,10.2.225.0/24 -j ACCEPT
+-A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
@@ -1104,23 +1106,6 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
 COMMIT
 EOF
-MY_DC=$(cat /rescue/datacenter)
-case $MY_DC in
-  "ams01" ) sed -i  -e 's/10\.2\.216/10.2.200/' /etc/sysconfig/iptables;;
-  "dal01" ) sed -i  -e 's/10\.2\.216/10.1.0.0\/24,10.1.2/' /etc/sysconfig/iptables;;
-  "dal05" ) sed -i  -e 's/10\.2\.216/10.1.24/'  /etc/sysconfig/iptables;;
-  "dal06" ) sed -i  -e 's/10\.2\.216/10.2.208/' /etc/sysconfig/iptables;;
-  "dal07" ) sed -i  -e 's/10\.2\.216/10.1.236/' /etc/sysconfig/iptables;;
-# "hkg02" ) sed -i  -e 's/10\.2\.216/10.2.216/' /etc/sysconfig/iptables;;
-  "hou02" ) sed -i  -e 's/10\.2\.216/10.1.56/'  /etc/sysconfig/iptables;;
-  "lon02" ) sed -i  -e 's/10\.2\.216/10.2.220/' /etc/sysconfig/iptables;;
-  "mel01" ) sed -i  -e 's/10\.2\.216/10.2.228/' /etc/sysconfig/iptables;;
-  "sea01" ) sed -i  -e 's/10\.2\.216/10.1.8.0/' /etc/sysconfig/iptables;;
-  "sjc01" ) sed -i  -e 's/10\.2\.216/10.1.224/' /etc/sysconfig/iptables;;
-  "sng01" ) sed -i  -e 's/10\.2\.216/10.2.192/' /etc/sysconfig/iptables;;
-  "tor01" ) sed -i  -e 's/10\.2\.216/10.1.232/' /etc/sysconfig/iptables;;
-  "wdc01" ) sed -i  -e 's/10\.2\.216/10.1.16/'  /etc/sysconfig/iptables;;
-esac
 if ! ifconfig bond0 2> /dev/null; then
   sed -i -e '/bond0/ s/^/#/' /etc/sysconfig/iptables
   sed -i -e '/bond1/ s/^/#/' /etc/sysconfig/iptables
