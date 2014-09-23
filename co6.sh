@@ -126,7 +126,8 @@ echo ---------------------------------------------------------------------------
 for i in eth0 eth1 eth2 eth3 bond0 bond1
 do
   ifconfig $i > /dev/null 2>&1 || break
-  for j in "" --show-pause --show-coalesce --show-ring --driver --register-dump --eeprom-dump --show-features --show-permaddr --statistics --show-nfc --get-dump --show-time-stamping --show-rxfh-indir --show-channels --dump-module-eeprom --show-priv-flags --show-eee
+#  for j in "" --show-pause --show-coalesce --show-ring --driver --register-dump --eeprom-dump --show-features --show-permaddr --statistics --show-nfc --get-dump --show-time-stamping --show-rxfh-indir --show-channels --dump-module-eeprom --show-priv-flags --show-eee
+  for j in "" --show-features
   do
     echo --------------------------------------------------------------------------------
     ethtool $j $i 2> /dev/null
@@ -288,8 +289,9 @@ ps -ef || $Error
 chkconfig --list || $Error
 if grep ' /disk' /etc/fstab; then
   sed -i -e '/ \/disk/d' /etc/fstab || $Error
-  umount /disk{,0} || :
-  rmdir /disk{,0} || :
+  umount /disk*
+  while umount /disk1; do :; done
+  rmdir /disk* || :
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
   swapoff /dev/sda3 || $Error
   fdisk /dev/sda << 'EOF' || :
@@ -352,7 +354,7 @@ swapon -a
 rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
-    if [ -e /dev/sdc -a ! -e /dev/sdc1 ]; then
+    if [ -e /dev/sdc ]; then
       echo Yes | parted /dev/sdc mklabel msdos || :
       dd if=/dev/zero of=/dev/sdc bs=1M count=10 || $Error
       echo Yes | parted /dev/sdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
@@ -381,7 +383,7 @@ swapon -a
 rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
-    if [ -e /dev/sdb -a ! -e /dev/sdb1 ]; then
+    if [ -e /dev/sdb ]; then
       echo Yes | parted /dev/sdb mklabel msdos || :
       dd if=/dev/zero of=/dev/sdb bs=1M count=10 || $Error
       echo Yes | parted /dev/sdb mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
@@ -435,7 +437,7 @@ rm -f /rescue/once
 EOF
   chmod 755 /rescue/once || $Error
 fi
-if [ -e /dev/xvdc -a ! -e /dev/xvdc1 ]; then
+if [ -e /dev/xvdc ]; then
   echo Yes | parted /dev/xvdc mklabel msdos || :
   dd if=/dev/zero of=/dev/xvdc bs=1M count=10 || $Error
   echo Yes | parted /dev/xvdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
@@ -458,8 +460,8 @@ echo 'id:3:initdefault:' | tee /etc/inittab || $Error
 
 cat /boot/grub/grub.conf || $Error
 if ! grep -q ' selinux=0 ' /boot/grub/grub.conf; then
-  wget -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/vmlinuz || $Error
-  wget -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/initrd.img || $Error
+  wget -q -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/vmlinuz || $Error
+  wget -q -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/initrd.img || $Error
   sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
   sed -i -e 's/^timeout=.*$/timeout=3/' /boot/grub/grub.conf || $Error
   sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
@@ -730,12 +732,12 @@ else
 fi
 
 if [ ! -e /usr/local/sbin/ipmicli ]; then
-  wget -O /usr/local/sbin/ipmicli http://downloads.service.softlayer.com/ipmi/linux/cli/ipmicli.x86_64 || $Error
+  wget -q -O /usr/local/sbin/ipmicli http://downloads.service.softlayer.com/ipmi/linux/cli/ipmicli.x86_64 || $Error
   chmod 755 /usr/local/sbin/ipmicli || $Error
 fi
 
 if [ ! -d /usr/Adaptec_Event_Monitor/ ]; then
-  wget http://download.adaptec.com/raid/storage_manager/adaptec_event_monitor_v1_06_21062.zip || $Error
+  wget -q http://download.adaptec.com/raid/storage_manager/adaptec_event_monitor_v1_06_21062.zip || $Error
   unzip adaptec_event_monitor_v1_06_21062.zip || $Error
   yum -y localinstall https://raw.githubusercontent.com/pcserver-jp/SoftLayer/master/kmod-aacraid-1.2.1-2.el6.x86_64.rpm linux_x64/EventMonitor-1.06-21062.x86_64.rpm || $Error
   rm -rf adaptec_event_monitor_v1_06_21062.zip debian debian_x64 freebsd* linux linux_x64 solaris_x86 windows* || $Error
@@ -777,7 +779,7 @@ yum -y --enablerepo=epel install \
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
-wget http://iij.dl.sourceforge.jp/linux-ha/61791/pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz || $Error
+wget -q http://iij.dl.sourceforge.jp/linux-ha/61791/pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz || $Error
 tar xzvf pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz -C /tmp/ || $Error
 yum -y -c /tmp/pacemaker-1.0.13-2.1.el6.x86_64.repo/pacemaker.repo install pacemaker heartbeat pm_extras pm_diskd || $Error
 rm -rf /tmp/pacemaker-1.0.13-2.1.el6.x86_64.repo pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz || $Error
@@ -1564,6 +1566,9 @@ else
     chkconfig --add EventMonitorService || $Error
     chkconfig EventMonitorService on    || $Error
   fi
+fi
+if [ -e /dev/vg0 ]; then
+  chkconfig --add lvm2-monitor || $Error
 fi
 
 cat << 'EOF' | tee /etc/ssh/sshd_config || $Error
