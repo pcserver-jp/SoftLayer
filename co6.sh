@@ -930,8 +930,49 @@ EOF
 
 cat << 'EOF_NFSSERVER_FOR_BACKUP' | tee /etc/ha.d/mk_nfsserver_for_backup || $Error
 #!/bin/bash
+
+if [ "$1" = "MASTER" ]; then
+  INIT_MODE=MASTER
+elif [ "$1" = "SLAVE" ]; then
+  INIT_MODE=SLAVE
+elif [ "$1" ]; then
+  if ! ping -c 1 $1; then
+    if ! ping -c 1 $1; then
+      if ! ping -c 1 $1; then
+        echo; echo "No Active node: $1"
+        exit 1
+      fi
+    fi
+  fi
+  if ip addr show | grep -q " $1/"; then
+    echo "This host is Active."
+    exit 1
+  fi
+  if ! rpcinfo -T tcp $1; then
+    exit 1
+  fi
+  if ! ssh -o StrictHostKeyChecking=no -t $1 "stty -onlcr && sudo cat /root/ha_param.tgz" | sudo tee /root/ha_param.tgz > /dev/null; then
+    exit 1
+  fi
+  sudo tar xzvf /root/ha_param.tgz -C /
+  sudo /etc/init.d/sshd restart
+  . /etc/ha.d/param_all_nfsserver_for_backup
+  sudo nohup $0 SLAVE > mk_nfsserver_for_backup.log 2>&1 &
+  sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
+  exit 0
+else
+  . /etc/ha.d/param_all_nfsserver_for_backup
+  if [ $? -ne 0 ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  sudo nohup $0 MASTER > mk_nfsserver_for_backup.log 2>&1 &
+  sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
+  exit 0
+fi
+
 if [ "$(id)" != "$(id root)" ]; then
-  echo; echo "You are not root user."
+  echo; echo "You have no authority."
   exit 1
 fi
 . /etc/ha.d/param_all_nfsserver_for_backup
@@ -1003,44 +1044,8 @@ if [ ! "$NFS_EXPORT_POINT" ]; then
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
   exit 1
 fi
-if [ "$(uname -n)" = "$HA1_NAME" ]; then
-  if ping -c 1 $HA_NAME; then
-    INIT_MODE=SLAVE
-  elif ping -c 1 $HA_NAME; then
-    INIT_MODE=SLAVE
-  elif ping -c 1 $HA_NAME; then
-    INIT_MODE=SLAVE
-  else
-    INIT_MODE=MASTER
-  fi
-elif [ "$(uname -n)" = "$HA2_NAME" ]; then
-  if ping -c 1 $HA_NAME; then
-    INIT_MODE=SLAVE
-  else
-    echo; echo "No Active node: $HA_NAME"
-    exit 1
-  fi
-else
-  echo; echo "Mismatch hostname: $(uname -n) / $HA1_NAME / $HA2_NAME"
-  exit 1
-fi
-if [ "$INIT_MODE" = "SLAVE" ]; then
-  if ! ping -c 1 $HA_VIP; then
-    echo; echo "No Active node: $HA_VIP"
-    exit 1
-  fi
-  if ip addr show | grep -q " $HA_VIP/"; then
-    echo "$(uname -n) is Active host"
-    exit 1
-  fi
-fi
-set -x
-if [ "$1" != nohup ]; then
-  nohup $0 nohup > mk_nfsserver_for_backup.log 2>&1 &
-  chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
-  exit 0
-fi
 
+set -x
 if [ ! -e /dev/vg0/drbd0 ]; then
   lvcreate --name drbd0 --size $DRBD_SIZE vg0 || exit 1
 fi
@@ -1061,14 +1066,15 @@ sed -i -e "s/ip=[0-9.]* /ip=$PRIV_IP /" /boot/grub/grub.conf
 sed -i -e "s/gateway=[0-9.]* /gateway=$HA_GATEWAY /" /boot/grub/grub.conf
 
 cat << EOF | tee /etc/hosts
-127.0.0.1       localhost.localdomain localhost
-$HA_GATEWAY     $HA_GATEWAY_NAME $(echo $HA_GATEWAY_NAME | awk -F. '{print $1}')
-$HA1_IP    $HA1_NAME $(echo $HA1_NAME | awk -F. '{print $1}')
-$HA2_IP    $HA2_NAME $(echo $HA2_NAME | awk -F. '{print $1}')
-$HA_VIP    $HA_NAME $(echo $HA_NAME | awk -F. '{print $1}')
-$HA1_HB_IP     $HA1_HB_NAME $(echo $HA1_HB_NAME | awk -F. '{print $1}')
-$HA2_HB_IP     $HA2_HB_NAME $(echo $HA2_HB_NAME | awk -F. '{print $1}')
+127.0.0.1^localhost.localdomain localhost
+$HA_GATEWAY^$HA_GATEWAY_NAME $(echo $HA_GATEWAY_NAME | awk -F. '{print $1}')
+$HA1_IP^$HA1_NAME $(echo $HA1_NAME | awk -F. '{print $1}')
+$HA2_IP^$HA2_NAME $(echo $HA2_NAME | awk -F. '{print $1}')
+$HA_VIP^$HA_NAME $(echo $HA_NAME | awk -F. '{print $1}')
+$HA1_HB_IP^$HA1_HB_NAME $(echo $HA1_HB_NAME | awk -F. '{print $1}')
+$HA2_HB_IP^$HA2_HB_NAME $(echo $HA2_HB_NAME | awk -F. '{print $1}')
 EOF
+sed -i -e 's/\^/\t/g' /etc/hosts
 
 /etc/init.d/network restart
 
@@ -1361,7 +1367,6 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   ln -s /export/nfs /var/lib/nfs
   rmdir /export/nfs/rpc_pipefs/
   ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs
-  tar czvf /etc/ha.d/sshd.tgz /etc/ssh
   mkdir -p /export$NFS_EXPORT_POINT/system
   chmod 700 /export$NFS_EXPORT_POINT/system
   chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT
@@ -1381,18 +1386,20 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt
   cp /mnt/images/{install.img,updates.img} /backup/co605/images/
   umount /mnt
-
-
-  echo; echo "Next is on $HA2_NAME, and execute $0 $1"
+  cd /
+  if [ ! -e /root/.ssh/id_rsa ]; then
+    ssh-keygen -q -f /root/.ssh/id_rsa -N ""
+    mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+  fi
+  sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config
+  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_nfsserver_for_backup root/.ssh/id_rsa root/.ssh/authorized_keys
+  /etc/init.d/sshd restart
 elif [ "$INIT_MODE" = "SLAVE" ]; then
   mkdir -p /export
   mkdir -p $NFS_EXPORT_POINT
   mkdir -p /var/lib/rpc_pipefs/
   rm -rf /var/lib/nfs
   ln -s /export/nfs /var/lib/nfs
-  scp -o StrictHostKeyChecking=no $MY_SL_ADMIN@$HA1_NAME:/etc/ha.d/sshd.tgz /etc/ha.d/
-  tar xzvf /tmp/sshd.tgz -C /
-  /etc/init.d/sshd restart
   sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
   rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
   /etc/init.d/heartbeat start
