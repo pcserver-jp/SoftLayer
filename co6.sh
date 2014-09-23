@@ -912,7 +912,31 @@ EOF
 cat << 'EOF' | tee /etc/ha.d/param_all_nfsserver_for_backup || $Error
 . /etc/ha.d/param_nfsserver_for_backup
 HA_NETWORK_123=$(echo $HA_VIP | awk -F. '{print $1 "." $2 "." $3}')
+if [ "$HA_NETWORK_123" != "$(echo $HA1_IP | awk -F. '{print $1 "." $2 "." $3}')" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
+if [ "$HA_NETWORK_123" != "$(echo $HA2_IP | awk -F. '{print $1 "." $2 "." $3}')" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
 HA_NETWORK_4=$(($(echo $HA_VIP | awk -F. '{print $4}') & -64))
+if [ "$HA_NETWORK_4" != "$(($(echo $HA1_IP | awk -F. '{print $4}') & -64))" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
+if [ "$HA_NETWORK_4" != "$(($(echo $HA2_IP | awk -F. '{print $4}') & -64))" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
+if [ "$HA_VIP" = "$HA1_IP" -o "$HA_VIP" = "$HA2_IP" -o "$HA1_IP" = "$HA2_IP" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
+if [ "$HA1_HB_IP" = "$HA2_HB_IP" ]; then
+  echo "Error: Network Configuration"
+  exit 1
+fi
 HA_GATEWAY="$HA_NETWORK_123.$((HA_NETWORK_4+1))"
 [ -e /proc/net/bonding ] && NIC0=bond0 || NIC0=eth0
 [ -e /proc/net/bonding ] && NIC1=bond1 || NIC1=eth1
@@ -973,9 +997,8 @@ elif [ "$1" ]; then
     echo "Please check hostname."
     exit 1
   fi
-  sudo nohup $0 SLAVE > mk_nfsserver_for_backup.log 2>&1 &
-  sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
-  echo && echo "Please log in to this server ($PRIV_IP) again and check log: ~/mk_nfsserver_for_backup.log"
+  sudo nohup $0 SLAVE &
+  echo && echo "Please log in to this server ($PRIV_IP) again and check log: nohup.out"
   exit 0
 else
   if [ "$(id)" = "$(id root)" ]; then
@@ -1059,9 +1082,8 @@ else
     echo "Please check hostname."
     exit 1
   fi
-  sudo nohup $0 MASTER > ~/mk_nfsserver_for_backup.log 2>&1 &
-  sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
-  echo && echo "Please log in to this server ($HA1_IP) again and check log: ~/mk_nfsserver_for_backup.log"
+  sudo nohup $0 MASTER &
+  echo && echo "Please log in to this server ($HA1_IP) again and check log: nohup.out"
   exit 0
 fi
 
@@ -1075,6 +1097,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+date
 set -x
 if [ ! -e /dev/vg0/drbd0 ]; then
   lvcreate --name drbd0 --size $DRBD_SIZE vg0 || exit 1
@@ -1406,12 +1429,13 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   /etc/init.d/heartbeat start || exit 1
   while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
   crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
-  while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 1; done
+  while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
+  crm_mon -1frA
   mkdir -p /backup/ks || exit 1
   chmod 700 /backup/ks || exit 1
   mkdir -p /backup/co605/images || exit 1
   chmod -R 700 /backup/co605 || exit 1
-  wget http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso || exit 1
+  wget -q http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso || exit 1
   mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt || exit 1
   cp /mnt/images/{install.img,updates.img} /backup/co605/images/ || exit 1
   umount /mnt || exit 1
@@ -1435,7 +1459,12 @@ elif [ "$INIT_MODE" = "SLAVE" ]; then
   sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
   rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
   /etc/init.d/heartbeat start || exit 1
-  crm_mon -frA
+  while ! grep -q sync /proc/drbd; do date;sleep 5; done
+  cat /proc/drbd
+  while grep sync /proc/drbd; do date;sleep 60; done
+  cat /proc/drbd
+  crm_mon -1frA
+  echo; echo "The setup of the slave server was completed."
 else
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup correctly."
   exit 1
