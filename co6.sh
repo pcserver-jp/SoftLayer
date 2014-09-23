@@ -931,11 +931,23 @@ EOF
 cat << 'EOF_NFSSERVER_FOR_BACKUP' | tee /etc/ha.d/mk_nfsserver_for_backup || $Error
 #!/bin/bash
 
+if grep UpToDate /proc/drbd 2> /dev/null; then
+  echo "This server is already setuped."
+  exit 1
+fi
 if [ "$1" = "MASTER" ]; then
   INIT_MODE=MASTER
 elif [ "$1" = "SLAVE" ]; then
   INIT_MODE=SLAVE
 elif [ "$1" ]; then
+  if [ "$(id)" = "$(id root)" ]; then
+    echo; echo "You have no authority."
+    exit 1
+  fi
+  if ! sudo date; then
+    echo; echo "You have no authority."
+    exit 1
+  fi
   if ! ping -c 1 $1; then
     if ! ping -c 1 $1; then
       if ! ping -c 1 $1; then
@@ -954,20 +966,102 @@ elif [ "$1" ]; then
   if ! ssh -o StrictHostKeyChecking=no -t $1 "stty -onlcr && sudo cat /root/ha_param.tgz" | sudo tee /root/ha_param.tgz > /dev/null; then
     exit 1
   fi
-  sudo tar xzvf /root/ha_param.tgz -C /
-  sudo /etc/init.d/sshd restart
+  sudo tar xzvf /root/ha_param.tgz -C / || exit 1
+  sudo /etc/init.d/sshd restart || exit 1
   . /etc/ha.d/param_all_nfsserver_for_backup
+  if [ "$(uname -n)" != "$HA1_NAME" -a "$(uname -n)" != "$HA2_NAME" ];then
+    echo "Please check hostname."
+    exit 1
+  fi
   sudo nohup $0 SLAVE > mk_nfsserver_for_backup.log 2>&1 &
   sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
+  echo && echo "Please log in to this server ($PRIV_IP) again and check log: ~/mk_nfsserver_for_backup.log"
   exit 0
 else
+  if [ "$(id)" = "$(id root)" ]; then
+    echo; echo "You have no authority."
+    exit 1
+  fi
+  if ! sudo date; then
+    echo; echo "You have no authority."
+    exit 1
+  fi
   . /etc/ha.d/param_all_nfsserver_for_backup
   if [ $? -ne 0 ]; then
     echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
     exit 1
   fi
-  sudo nohup $0 MASTER > mk_nfsserver_for_backup.log 2>&1 &
+  if [ ! "$HA1_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA2_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA1_IP" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA2_IP" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA_VIP" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA_GATEWAY_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA1_HB_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA2_HB_NAME" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA1_HB_IP" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$HA2_HB_IP" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$MY_SL_ADMIN" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$DRBD_SIZE" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$DRBD_PASSWORD" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$NFS_CLIENTS" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ ! "$NFS_EXPORT_POINT" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    exit 1
+  fi
+  if [ "$(uname -n)" != "$HA1_NAME" ];then
+    echo "Please check hostname."
+    exit 1
+  fi
+  sudo nohup $0 MASTER > ~/mk_nfsserver_for_backup.log 2>&1 &
   sudo chown $MY_SL_ADMIN:$MY_SL_ADMIN mk_nfsserver_for_backup.log
+  echo && echo "Please log in to this server ($HA1_IP) again and check log: ~/mk_nfsserver_for_backup.log"
   exit 0
 fi
 
@@ -977,70 +1071,6 @@ if [ "$(id)" != "$(id root)" ]; then
 fi
 . /etc/ha.d/param_all_nfsserver_for_backup
 if [ $? -ne 0 ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA1_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA2_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA1_IP" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA2_IP" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA_VIP" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA_GATEWAY_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA1_HB_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA2_HB_NAME" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA1_HB_IP" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$HA2_HB_IP" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$MY_SL_ADMIN" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$DRBD_SIZE" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$DRBD_PASSWORD" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$NFS_CLIENTS" ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-  exit 1
-fi
-if [ ! "$NFS_EXPORT_POINT" ]; then
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
   exit 1
 fi
@@ -1197,8 +1227,10 @@ resource r0 {
 }
 EOF
 
-sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.info                                             /var/log/ha-log' /etc/rsyslog.conf
-/etc/init.d/rsyslog restart
+if ! grep /var/log/ha-log /etc/rsyslog.conf; then
+  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.info                                             /var/log/ha-log' /etc/rsyslog.conf
+  /etc/init.d/rsyslog restart
+fi
 
 cat << 'EOF' | tee /etc/logrotate.d/heartbeat
 
@@ -1340,69 +1372,69 @@ rsc_defaults migration-threshold="2"
 rsc_defaults resource-stickiness="200"
 EOF
 
-#dd if=/dev/zero of=/dev/vg0/drbd0 bs=1M
-echo yes | drbdadm wipe-md r0 || exit 1
-echo yes | drbdadm create-md r0 || exit 1
 if [ "$INIT_MODE" = "MASTER" ]; then
-  sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf
-  /etc/init.d/drbd start
-  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
-#  drbdadm new-current-uuid --clear-bitmap r0/0
-#  drbdadm primary all
-  drbdadm primary --force all
-  mkfs.ext4 /dev/drbd0
-  tune2fs -c 0 -i 0 /dev/drbd0
-  mkdir -p /export
-  mkdir -p $NFS_EXPORT_POINT
-  mkdir -p /var/lib/rpc_pipefs/
-  mount /dev/drbd0 /export
-  /etc/init.d/rpcbind start
-  /etc/init.d/nfslock start
-  /etc/init.d/nfs start
-  /etc/init.d/nfs stop
-  /etc/init.d/nfslock stop
-  /etc/init.d/rpcbind stop
-  umount /var/lib/nfs/rpc_pipefs/
-  mv /var/lib/nfs /export/
-  ln -s /export/nfs /var/lib/nfs
-  rmdir /export/nfs/rpc_pipefs/
-  ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs
-  mkdir -p /export$NFS_EXPORT_POINT/system
-  chmod 700 /export$NFS_EXPORT_POINT/system
-  chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT
-  umount /export/
-  drbdadm secondary all
-  /etc/init.d/drbd stop
-  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
-  /etc/init.d/heartbeat start
+  echo yes | drbdadm wipe-md r0 || exit 1
+  echo yes | drbdadm create-md r0 || exit 1
+  sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf || exit 1
+  /etc/init.d/drbd start || exit 1
+  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
+  drbdadm primary --force all || exit 1
+  mkfs.ext4 /dev/drbd0 || exit 1
+  tune2fs -c 0 -i 0 /dev/drbd0 || exit 1
+  mkdir /export || exit 1
+  mkdir -p $NFS_EXPORT_POINT || exit 1
+  mkdir -p /var/lib/rpc_pipefs/ || exit 1
+  mount /dev/drbd0 /export || exit 1
+  /etc/init.d/rpcbind start || exit 1
+  /etc/init.d/nfslock start || exit 1
+  /etc/init.d/nfs start || exit 1
+  /etc/init.d/nfs stop || exit 1
+  /etc/init.d/nfslock stop || exit 1
+  /etc/init.d/rpcbind stop || exit 1
+  umount /var/lib/nfs/rpc_pipefs/ || exit 1
+  mv /var/lib/nfs /export/ || exit 1
+  ln -s /export/nfs /var/lib/nfs || exit 1
+  rmdir /export/nfs/rpc_pipefs/ || exit 1
+  ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs || exit 1
+  mkdir -p /export$NFS_EXPORT_POINT/system || exit 1
+  chmod 700 /export$NFS_EXPORT_POINT/system || exit 1
+  chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT || exit 1
+  umount /export/ || exit 1
+  drbdadm secondary all || exit 1
+  /etc/init.d/drbd stop || exit 1
+  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
+  /etc/init.d/heartbeat start || exit 1
   while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
-  crm configure load update /etc/ha.d/nfsserver_for_backup.txt
+  crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 1; done
-  mkdir -p /backup/ks
-  chmod 700 /backup/ks
-  mkdir -p /backup/co605/images
-  chmod -R 700 /backup/co605
-  wget http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso
-  mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt
-  cp /mnt/images/{install.img,updates.img} /backup/co605/images/
-  umount /mnt
-  cd /
+  mkdir -p /backup/ks || exit 1
+  chmod 700 /backup/ks || exit 1
+  mkdir -p /backup/co605/images || exit 1
+  chmod -R 700 /backup/co605 || exit 1
+  wget http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso || exit 1
+  mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt || exit 1
+  cp /mnt/images/{install.img,updates.img} /backup/co605/images/ || exit 1
+  umount /mnt || exit 1
+  cd / || exit 1
   if [ ! -e /root/.ssh/id_rsa ]; then
-    ssh-keygen -q -f /root/.ssh/id_rsa -N ""
-    mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+    ssh-keygen -q -f /root/.ssh/id_rsa -N "" || exit 1
+    mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys || exit 1
   fi
-  sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config
-  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_nfsserver_for_backup root/.ssh/id_rsa root/.ssh/authorized_keys
-  /etc/init.d/sshd restart
+  sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config || exit 1
+  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_nfsserver_for_backup root/.ssh/id_rsa root/.ssh/authorized_keys || exit 1
+  /etc/init.d/sshd restart || exit 1
+  echo; echo "The setup of the master server was completed. Please set up the slave server."
 elif [ "$INIT_MODE" = "SLAVE" ]; then
-  mkdir -p /export
-  mkdir -p $NFS_EXPORT_POINT
-  mkdir -p /var/lib/rpc_pipefs/
-  rm -rf /var/lib/nfs
-  ln -s /export/nfs /var/lib/nfs
-  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf
-  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation
-  /etc/init.d/heartbeat start
+  echo yes | drbdadm wipe-md r0 || exit 1
+  echo yes | drbdadm create-md r0 || exit 1
+  mkdir /export || exit 1
+  mkdir -p $NFS_EXPORT_POINT || exit 1
+  mkdir -p /var/lib/rpc_pipefs/ || exit 1
+  rm -rf /var/lib/nfs || exit 1
+  ln -s /export/nfs /var/lib/nfs || exit 1
+  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
+  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
+  /etc/init.d/heartbeat start || exit 1
   crm_mon -frA
 else
   echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup correctly."
