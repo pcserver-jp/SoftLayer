@@ -229,7 +229,7 @@ fi
 cat /etc/sysctl.conf || $Error
 sed -i -e 's/^net\.bridge/#net.bridge/' /etc/sysctl.conf || $Error
 
-if grep -q '^NOZEROCONF' /etc/sysconfig/network; then
+if ! grep -q '^NOZEROCONF' /etc/sysconfig/network; then
   cat /etc/sysconfig/network || $Error
   cat << 'EOF' | tee -a /etc/sysconfig/network || $Error
 NOZEROCONF=yes
@@ -1299,13 +1299,14 @@ respawn root /usr/lib64/heartbeat/ifcheckd
 EOF
 
 NFS_CLIENTS=$(echo $NFS_CLIENTS | tr , " ")
+P_VIP=p_vip_$(echo $HA_VIP | tr . _)
 
 cat << EOF | tee /etc/ha.d/nfsserver_for_backup.txt
 primitive p_drbd_r0 ocf:linbit:drbd \\
   params drbd_resource="r0" \\
   op start   interval="0" timeout="240s" \\
-  op monitor interval="31s" enabled="true" role="Master" timeout="20s" \\
-  op monitor interval="29s" enabled="true" role="Slave"  timeout="20s" \\
+  op monitor interval="31s" role="Master" timeout="20s" \\
+  op monitor interval="29s" role="Slave"  timeout="20s" \\
   op notify  interval="0" timeout="90s" \\
   op stop    interval="0" timeout="120s" \\
   op promote interval="0" timeout="90s" \\
@@ -1314,11 +1315,14 @@ primitive p_vipcheck ocf:heartbeat:VIPcheck \\
   params target_ip="$HA_VIP" count="1" wait="10"  \\
   op start interval="0" timeout="90s" start_delay="4s" \\
   op stop  interval="0" timeout="60s"
-primitive p_vip ocf:heartbeat:IPaddr2 \\
+primitive $P_VIP ocf:heartbeat:IPaddr2 \\
   params ip=$HA_VIP cidr_netmask=26 \\
   op start   interval="0"   timeout="20" \\
   op monitor interval="30s" timeout="20" \\
   op stop    interval="0"   timeout="20"
+primitive p_vip ocf:heartbeat:IPsrcaddr \\
+  params ipaddress=$HA_VIP \\
+  op monitor interval="50s" timeout="30"
 primitive p_fs_export ocf:heartbeat:Filesystem \\
   params device=/dev/drbd0 directory=/export fstype=ext4 run_fsck="no" \\
   op start   interval="0"   timeout="60s" \\
@@ -1372,7 +1376,7 @@ primitive p_exp_nfs3 ocf:heartbeat:exportfs \\
   op monitor interval="30s" \\
   op stop    interval="0"   timeout="100s" \\
   meta is-managed="true"
-group g_nfs p_vipcheck p_fs_export p_fs_nfs3 p_rpcbind p_nfslock p_nfsserver p_exp_root p_exp_backup p_exp_nfs3 p_vip
+group g_nfs p_vipcheck p_fs_export p_fs_nfs3 p_rpcbind p_nfslock p_nfsserver p_exp_root p_exp_backup p_exp_nfs3 $P_VIP p_vip
 ms ms_drbd_r0 p_drbd_r0 \\
   meta master-max="1" master-node-max="1" clone-max="2" \\
   clone-node-max="1" notify="true" target-role="Started" \\
