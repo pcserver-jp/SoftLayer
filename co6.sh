@@ -48,7 +48,7 @@ if [ ! -e /root/post_install.sh -a $(ls /root/post_install.* | wc -l) -eq 1 ];th
     mv /root/post_install.* /root/post_install.sh 2> /dev/null || $Error
   fi
 fi
-exec > /root/post_install.log || $Error
+exec >> /root/post_install.log || $Error
 exec 2>&1 || $Error
 set -x || $Error
 
@@ -358,6 +358,9 @@ w
 EOF
     cat << 'EOF' | tee /rescue/once || $Error
 #!/bin/bash
+exec >> /root/post_install.log
+exec 2>&1
+set -x
 resize2fs /dev/sda2
 mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/sdb1
 cat << 'EOF_FSTAB' | tee -a /etc/fstab
@@ -365,12 +368,13 @@ UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
 EOF_FSTAB
 swapon -a
 if [ -e /dev/sdc ]; then
+  chkconfig --add lvm2-monitor
+  /etc/init.d/lvm2-monitor start
   echo Yes | parted /dev/sdc mklabel msdos
   echo Yes | parted /dev/sdc mklabel gpt
   echo Yes | parted /dev/sdc mkpart primary 1MiB 100% set 1 lvm on
   pvcreate /dev/sdc1
   vgcreate -s 32M vg0 /dev/sdc1
-  chkconfig --add lvm2-monitor
   for i in d e f g h i j k l m n o p q r s t u v w x y z
   do
     [ -e /dev/sd$i ] || break
@@ -386,17 +390,20 @@ EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdc ]; then
       echo Yes | parted /dev/sdc mklabel msdos || :
-      dd if=/dev/zero of=/dev/sdc bs=1M count=10 || $Error
+      dd if=/dev/zero of=/dev/sdc bs=1M count=100 || $Error
       for i in d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=100 || $Error
       done
     fi
   else
     cat << 'EOF' | tee /rescue/once || $Error
 #!/bin/bash
+exec >> /root/post_install.log
+exec 2>&1
+set -x
 resize2fs /dev/sda2
 dd if=/dev/zero of=/.swap bs=1M count=2048
 mkswap -f -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /.swap
@@ -406,12 +413,13 @@ EOF_FSTAB
 swapon -a
 rm -f /rescue/once
 if [ -e /dev/sdb ]; then
+  chkconfig --add lvm2-monitor
+  /etc/init.d/lvm2-monitor start
   echo Yes | parted /dev/sdb mklabel msdos
   echo Yes | parted /dev/sdb mklabel gpt
   echo Yes | parted /dev/sdb mkpart primary 1MiB 100% set 1 lvm on
   pvcreate /dev/sdb1
   vgcreate -s 32M vg0 /dev/sdb1
-  chkconfig --add lvm2-monitor
   for i in c d e f g h i j k l m n o p q r s t u v w x y z
   do
     [ -e /dev/sd$i ] || break
@@ -426,12 +434,12 @@ EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdb ]; then
       echo Yes | parted /dev/sdb mklabel msdos || :
-      dd if=/dev/zero of=/dev/sdb bs=1M count=10 || $Error
+      dd if=/dev/zero of=/dev/sdb bs=1M count=100 || $Error
       for i in c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=100 || $Error
       done
     fi
   fi
@@ -463,6 +471,9 @@ w
 EOF
   cat << 'EOF' | tee /rescue/once || $Error
 #!/bin/bash
+exec >> /root/post_install.log
+exec 2>&1
+set -x
 mkswap -L swap -U 299ff4da-8897-405b-ae8e-5648a14fc81e /dev/xvdb1
 cat << 'EOF_FSTAB' | tee -a /etc/fstab
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
@@ -470,12 +481,13 @@ EOF_FSTAB
 swapon -a
 rm -f /rescue/once
 if [ -e /dev/xvdc ]; then
+  chkconfig --add lvm2-monitor
+  /etc/init.d/lvm2-monitor start
   echo Yes | parted /dev/xvdc mklabel msdos
   echo Yes | parted /dev/xvdc mklabel gpt
   echo Yes | parted /dev/xvdc mkpart primary 1MiB 100% set 1 lvm on
   pvcreate /dev/xvdc1
   vgcreate -s 32M vg0 /dev/xvdc1
-  chkconfig --add lvm2-monitor
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
@@ -491,12 +503,12 @@ EOF
 fi
 if [ -e /dev/xvdc ]; then
   echo Yes | parted /dev/xvdc mklabel msdos || :
-  dd if=/dev/zero of=/dev/xvdc bs=1M count=10 || $Error
+  dd if=/dev/zero of=/dev/xvdc bs=1M count=100 || $Error
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
     echo Yes | parted /dev/xvd$i mklabel msdos || :
-    dd if=/dev/zero of=/dev/xvd$i bs=1M count=10 || $Error
+    dd if=/dev/zero of=/dev/xvd$i bs=1M count=100 || $Error
   done
 fi
 blkid
