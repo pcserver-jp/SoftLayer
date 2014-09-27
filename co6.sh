@@ -5,6 +5,7 @@ MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_INIT_PW=sl-admin
 MY_SL_ADMIN_ID=65501
 WHEEL_SUDO_NOPASSWD=yes
+CENTOS_VER=6.5
 
 print_error_message_and_sleep()
 {
@@ -122,22 +123,22 @@ iptables -t mangle -nvL || $Error
 ifconfig || $Error
 route -n || $Error
 netstat -anp || $Error
-echo --------------------------------------------------------------------------------
+: --------------------------------------------------------------------------------
 for i in eth0 eth1 eth2 eth3 bond0 bond1
 do
   ifconfig $i > /dev/null 2>&1 || break
 #  for j in "" --show-pause --show-coalesce --show-ring --driver --register-dump --eeprom-dump --show-features --show-permaddr --statistics --show-nfc --get-dump --show-time-stamping --show-rxfh-indir --show-channels --dump-module-eeprom --show-priv-flags --show-eee
   for j in "" --show-features
   do
-    echo --------------------------------------------------------------------------------
+    : --------------------------------------------------------------------------------
     ethtool $j $i 2> /dev/null
   done;
 done
-echo --------------------------------------------------------------------------------
+: --------------------------------------------------------------------------------
 [ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0
-echo --------------------------------------------------------------------------------
+: --------------------------------------------------------------------------------
 [ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1
-echo --------------------------------------------------------------------------------
+: --------------------------------------------------------------------------------
 cat /etc/resolv.conf || $Error
 cat /etc/nsswitch.conf || $Error
 ifconfig bond0 > /dev/null 2>&1 && NIC0=bond0 || NIC0=eth0
@@ -360,6 +361,7 @@ EOF
       echo Yes | parted /dev/sdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
       pvcreate /dev/sdc1 || $Error
       vgcreate -s 32M vg0 /dev/sdc1 || $Error
+      chkconfig --add lvm2-monitor || $Error
       for i in d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
@@ -389,6 +391,7 @@ EOF
       echo Yes | parted /dev/sdb mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
       pvcreate /dev/sdb1 || $Error
       vgcreate -s 32M vg0 /dev/sdb1 || $Error
+      chkconfig --add lvm2-monitor || $Error
       for i in c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
@@ -443,6 +446,7 @@ if [ -e /dev/xvdc ]; then
   echo Yes | parted /dev/xvdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
   pvcreate /dev/xvdc1 || $Error
   vgcreate -s 32M vg0 /dev/xvdc1 || $Error
+  chkconfig --add lvm2-monitor || $Error
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
@@ -460,8 +464,8 @@ echo 'id:3:initdefault:' | tee /etc/inittab || $Error
 
 cat /boot/grub/grub.conf || $Error
 if ! grep -q ' selinux=0 ' /boot/grub/grub.conf; then
-  wget -q -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/vmlinuz || $Error
-  wget -q -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/isolinux/initrd.img || $Error
+  wget -q -O /boot/vmlinuz http://mirrors.service.networklayer.com/centos/$CENTOS_VER/os/x86_64/isolinux/vmlinuz || $Error
+  wget -q -O /boot/initrd.img http://mirrors.service.networklayer.com/centos/$CENTOS_VER/os/x86_64/isolinux/initrd.img || $Error
   sed -i -e 's/^default=0/default=0\nfallback=1/' /boot/grub/grub.conf || $Error
   sed -i -e 's/^timeout=.*$/timeout=3/' /boot/grub/grub.conf || $Error
   sed -i -e 's/^hiddenmenu/#hiddenmenu/' /boot/grub/grub.conf || $Error
@@ -489,7 +493,7 @@ if ! grep -q ' selinux=0 ' /boot/grub/grub.conf; then
     cat << EOF | tee -a /boot/grub/grub.conf || $Error
 title Rescue
 ^root (hd0,0)
-^kernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 biosdevname=0 nomount sshd=1 ksdevice=eth0 ip=$IP0 netmask=255.255.255.192 gateway=$GATEWAY0 dns=$DNS0
+^kernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/$CENTOS_VER/os/x86_64/ lang=en_US keymap=jp106 selinux=0 biosdevname=0 nomount sshd=1 ksdevice=eth0 ip=$IP0 netmask=255.255.255.192 gateway=$GATEWAY0 dns=$DNS0
 ^initrd /initrd.img
 EOF
     sed -i -e 's/^^/\t/g' /boot/grub/grub.conf || $Error
@@ -545,9 +549,9 @@ if [ "$1" = "" ]; then
   exit 1
 fi
 if [ -d /proc/xen/ ]; then
-  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') ks=nfs:$1:/backup/ks/$(uname -n).cfg%" /boot/grub/grub.conf && reboot
+  sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') ks=nfs:$1:/backup/ks/backup_boot_root.cfg%" /boot/grub/grub.conf && reboot
 else
-  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 ks=nfs:$1:/backup/ks/$(uname -n).cfg biosdevname=0 nomodeset pcie_aspm=off" && reboot
+  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 ks=nfs:$1:/backup/ks/backup_boot_root.cfg biosdevname=0 nomodeset pcie_aspm=off" && reboot
 fi
 EOF
 chmod 755 /rescue/backup || $Error
@@ -721,6 +725,32 @@ gpgkey=http://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 protect=0
 EOF
 
+cat << 'EOF' | tee /etc/yum.repos.d/mysql56.repo || $Error
+[MySQL56]
+name=MySQL 5.6 for Oracle Linux 6 ($basearch)
+baseurl=http://public-yum.oracle.com/repo/OracleLinux/OL6/MySQL56/$basearch/
+gpgkey=http://public-yum.oracle.com/RPM-GPG-KEY-oracle-ol6
+gpgcheck=1
+enabled=0
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/pgdg-93-centos.repo
+[pgdg93]
+name=PostgreSQL 9.3 $releasever - $basearch
+baseurl=http://yum.postgresql.org/9.3/redhat/rhel-$releasever-$basearch
+enabled=0
+gpgcheck=1
+gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
+
+[pgdg93-source]
+name=PostgreSQL 9.3 $releasever - $basearch - Source
+failovermethod=priority
+baseurl=http://yum.postgresql.org/srpms/9.3/redhat/rhel-$releasever-$basearch
+enabled=0
+gpgcheck=1
+gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
+EOF
+
 rpm -qa | LANG=C sort || $Error
 yum -y update || $Error
 
@@ -763,9 +793,103 @@ cat /usr/Adaptec_Event_Monitor/SMTP_Server_Details.cfg || $Error
 cat /usr/Adaptec_Event_Monitor/NRMFSAConfig.xml  || $Error
 sed -i -e 's/^nrm.debugMask.*$/nrm.debugMask = 2/' /usr/Adaptec_Event_Monitor/NRMConfig.conf || $Error
 
+yum -y localinstall https://raw.githubusercontent.com/pcserver-jp/stone/master/stone-2.3e-2.3.3.17.el6.x86_64.rpm
+openssl req -new -outform pem -out /etc/pki/tls/certs/stone.pem -newkey rsa:1024 -keyout stone.key -nodes -rand ./rand.pat -x509 -batch -days 36500
+cat stone.key | tee -a /etc/pki/tls/certs/stone.pem > /dev/null
+chmod 400 /etc/pki/tls/certs/stone.pem
+rm -f stone.key
+groupadd -g 17 stoned
+useradd -g stoned -u 17 -c "Stone Daemon" -N -r -M -d / -s /sbin/nologin stoned
+mkdir -p /var/chroot/stoned
+cat << 'EOF' | tee /etc/stoned.conf
+localhost:22 443/ssl
+EOF
+cat << 'EOF' | tee /etc/init.d/stoned
+#!/bin/bash
+#
+# stoned        Starts stone daemon.
+#
+# chkconfig: 2345 99 25
+# description: Stone is a TCP/IP repeater in the application layer. \
+# It repeats TCP and UDP from inside to outside of a firewall, or \
+# from outside to inside.
+
+### BEGIN INIT INFO
+# Provides: stoned
+# Required-Start: $network $local_fs $remote_fs
+# Required-Stop: $network $local_fs $remote_fs
+# Should-Start: $syslog
+# Should-Stop: $syslog
+# Default-Start: 2345
+# Default-Stop: 99
+# Short-Description: Starts/stop the "stone" daemon
+# Description:      Stone is a TCP/IP repeater in the application layer.
+#    It repeats TCP and UDP from inside to outside of a firewall, or
+#    from outside to inside.
+### END INIT INFO
+
+# source function library.
+. /etc/init.d/functions
+
+RETVAL=0
+prog="stone"
+lockfile=/var/lock/subsys/$prog
+STONE_BIN="/usr/bin/stone"
+STONE_CONF="/etc/${prog}d.conf"
+STONE_CHROOT=/var/chroot/${prog}d
+STONE_OPTS="-l -C $STONE_CONF -o stoned -g stoned -t $STONE_CHROOT"
+PIDFILE=/var/run/${prog}.pid
+
+start()
+{
+  [ "$EUID" != "0" ] && exit 4
+  echo -n $"Starting $prog: "
+  daemon $STONE_BIN $STONE_OPTS -D -i $PIDFILE
+  RETVAL=$?
+  echo
+  [ $RETVAL -eq 0 ] && touch $lockfile
+  return $RETVAL
+}
+
+stop()
+{
+  [ "$EUID" != "0" ] && exit 4
+  echo -n $"Shutting down $prog: "
+  killproc -p $PIDFILE $STONE_BIN
+  RETVAL=$?
+  echo
+  [ $RETVAL -eq 0 ] && rm -f $lockfile
+  return $RETVAL
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  status)
+    status $prog
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|restart}"
+    RETVAL=1
+esac
+
+exit $RETVAL
+EOF
+chmod 755 /etc/init.d/stoned
+
 yum -y install \
  dialog \
  nfs-utils \
+ perl-Authen-SASL \
+ perl-MIME-tools \
  python-setuptools \
  screen \
  telnet \
@@ -775,7 +899,12 @@ yum -y --enablerepo=epel install \
  bash-completion \
  fio \
  lsyncd \
+ mx \
  pv || $Error
+
+yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
+
+yum -y --enablerepo=pgdg93 install postgresql93\*
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
@@ -799,6 +928,52 @@ includefile /etc/ntp/crypto/pw
 keys /etc/ntp/keys
 EOF
 
+easy_install softlayer || $Error
+
+if [ ! -e /home/$MY_SL_ADMIN/.softlayer ]; then
+  touch /home/$MY_SL_ADMIN/.softlayer || $Error
+  chmod 600 /home/$MY_SL_ADMIN/.softlayer || $Error
+  chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer || $Error
+  cat << 'EOF' | tee /home/$MY_SL_ADMIN/.softlayer || $Error
+[softlayer]
+username = SL999999
+api_key = abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
+endpoint_url = https://api.service.softlayer.com/xmlrpc/v3.1
+timeout = 10
+EOF
+  touch /home/$MY_SL_ADMIN/.softlayer.user || $Error
+  chmod 600 /home/$MY_SL_ADMIN/.softlayer.user || $Error
+  chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer.user || $Error
+  echo 'user = SL999999:abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01' | tee /home/$MY_SL_ADMIN/.softlayer.user || $Error
+fi
+
+cat << 'EOF' | tee /usr/local/bin/sendalert
+#!/usr/bin/perl
+
+use strict;
+use MIME::Entity;
+use Net::SMTP;
+use Encode;
+
+my $username = 'softlayer@example.com';
+my $password = 'password';
+my $hello = 'example.com';
+my $from = 'softlayer@example.com';
+
+my $to = $ARGV[0];
+my $subject = encode( "MIME-Header-ISO_2022_JP", $ARGV[1] );
+my $text = $ARGV[2];
+my $mime = MIME::Entity->build(Type => 'multipart/alternative', Encoding => '-SUGGEST', From => $from, To => $to, Subject => $subject);
+$mime->attach(Type => 'text/plain', Encoding =>'-SUGGEST', Data => $text);
+my $smtp = Net::SMTP->new('smtp.sendgrid.net', Port=> 587, Timeout => 20, Hello => $hello);
+$smtp->auth($username, $password);
+$smtp->mail($from);
+$smtp->to($to);
+$smtp->data($mime->stringify);
+$smtp->quit();
+EOF
+chmod 700 /usr/local/bin/sendalert
+
 cat /etc/sysconfig/ipmi || $Error
 sed -i -e 's/^IPMI_WATCHDOG=.*$/IPMI_WATCHDOG=yes/' /etc/sysconfig/ipmi || $Error
 sed -i -e 's/^IPMI_WATCHDOG_OPTIONS=.*$/IPMI_WATCHDOG_OPTIONS="timeout=60 action=reset pretimeout=30 preaction=pre_int preop=preop_panic"/' /etc/sysconfig/ipmi || $Error
@@ -818,25 +993,6 @@ cat << 'EOF' | tee /etc/sysconfig/watchdog || $Error
 VERBOSE=no
 [ -d /proc/xen/ ] && modprobe softdog
 EOF
-
-easy_install softlayer || $Error
-
-if [ ! -e /home/$MY_SL_ADMIN/.softlayer ]; then
-  touch /home/$MY_SL_ADMIN/.softlayer || $Error
-  chmod 600 /home/$MY_SL_ADMIN/.softlayer || $Error
-  chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer || $Error
-  cat << 'EOF' | tee /home/$MY_SL_ADMIN/.softlayer || $Error
-[softlayer]
-username = SL999999
-api_key = abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
-endpoint_url = https://api.service.softlayer.com/xmlrpc/v3.1
-timeout = 10
-EOF
-  touch /home/$MY_SL_ADMIN/.softlayer.user || $Error
-  chmod 600 /home/$MY_SL_ADMIN/.softlayer.user || $Error
-  chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer.user || $Error
-  echo 'user = SL999999:abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01' | tee /home/$MY_SL_ADMIN/.softlayer.user || $Error
-fi
 
 cat /etc/sysconfig/nfs || $Error
 cat << 'EOF' | tee /etc/sysconfig/nfs || $Error
@@ -887,32 +1043,101 @@ sed -i -e "s/gateway=[0-9.]* /gateway=$GATEWAY /" /boot/grub/grub.conf
 EOF
 chmod 755 /rescue/mk_portable_ip || $Error
 
+cat << EOF | tee /etc/ha.d/_start || $Error
+#!/bin/bash
+while ! grep ds:UpToDate/ /proc/drbd > /dev/null;
+do
+  sleep 1
+done
+lvremove -f /dev/vg0/drbd0_snap
+EOF
+chmod 755 /etc/ha.d/_start || $Error
+
+cat << EOF | tee /etc/ha.d/start || $Error
+#!/bin/bash
+/etc/init.d/heartbeat status && exit 0
+if [ ! -b /dev/vg0/drbd0_snap ]; then
+  lvcreate --snapshot --extents 100%FREE --name drbd0_snap /dev/vg0/drbd0 || exit 1
+fi
+/etc/init.d/heartbeat start
+nohup /etc/ha.d/_start > /dev/null 2>&1 &
+EOF
+chmod 755 /etc/ha.d/start || $Error
+
+cat << EOF | tee /etc/ha.d/stop || $Error
+#!/bin/bash
+/etc/init.d/heartbeat stop
+EOF
+chmod 755 /etc/ha.d/stop || $Error
+
+cat << EOF | tee /etc/ha.d/which || $Error
+#!/bin/bash
+crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
+EOF
+chmod 755 /etc/ha.d/which || $Error
+
+cat << EOF | tee /etc/ha.d/switch || $Error
+#!/bin/bash
+crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
+crm resource move p_vip 2> /dev/null
+echo
+echo switching cluster ...
+echo
+while ! crm_mon -rfA1 | grep -q 'p_vip.*IPsrcaddr.*Stopped';
+do
+  sleep 1
+done
+while ! crm_mon -rfA1 | grep -q 'p_vip.*IPsrcaddr.*Started';
+do
+  sleep 1
+done
+crm resource unmove p_vip
+crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
+EOF
+chmod 755 /etc/ha.d/switch || $Error
+
+cat << EOF | tee /etc/ha.d/record || $Error
+#!/bin/bash
+crm_mon -rfA1 | grep -v ^Last > /etc/ha.d/_record
+[ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0 >> /etc/ha.d/_record
+[ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1 >> /etc/ha.d/_record
+EOF
+chmod 755 /etc/ha.d/record || $Error
+
+cat << EOF | tee /etc/ha.d/diff || $Error
+#!/bin/bash
+if [ ! -e /etc/ha.d/_record ]; then
+  echo /etc/ha.d/record was not executed.
+  exit 1
+fi
+crm_mon -rfA1 | grep -v ^Last > /etc/ha.d/_now
+[ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0 >> /etc/ha.d/_now
+[ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1 >> /etc/ha.d/_now
+diff /etc/ha.d/_record /etc/ha.d/_now
+EOF
+chmod 755 /etc/ha.d/diff || $Error
+
+#!/bin/bash
 cat << EOF | tee /etc/ha.d/param_nfsserver_for_backup || $Error
-HA1_NAME=backup11.example.com
-HA2_NAME=backup12.example.com
 HA1_IP=
 HA2_IP=
-HA_NAME=backup10.example.com
 HA_VIP=
-HA_GATEWAY_NAME=gateway1.example.com
-HA1_HB_NAME=backup11-hb.example.com
-HA2_HB_NAME=backup12-hb.example.com
-HA1_HB_IP=192.168.0.2
-HA2_HB_IP=192.168.0.3
-
-MY_SL_ADMIN=$MY_SL_ADMIN
+HA_DOMAIN=example.com
+HA1_NODE=backup11
+HA2_NODE=backup12
+HA_NODE=backup1
+HA_GATEWAY_NODE=gateway1
 SSH_CLIENTS=10.0.0.0/8
-
 DRBD_SIZE=90G
 DRBD_PASSWORD=password
-
 NFS_CLIENTS=10.0.0.0/8
-
-NFS_EXPORT_POINT=/backup
 EOF
 
-cat << 'EOF' | tee /etc/ha.d/param_all_nfsserver_for_backup || $Error
+cat << EOF | tee /etc/ha.d/param_all_nfsserver_for_backup || $Error
 . /etc/ha.d/param_nfsserver_for_backup
+CENTOS_VER=$CENTOS_VER
+EOF
+cat << 'EOF' | tee -a /etc/ha.d/param_all_nfsserver_for_backup || $Error
 HA_NETWORK_123=$(echo $HA_VIP | awk -F. '{print $1 "." $2 "." $3}')
 if [ "$HA_NETWORK_123" != "$(echo $HA1_IP | awk -F. '{print $1 "." $2 "." $3}')" ]; then
   echo "Error: Network Configuration"
@@ -940,6 +1165,16 @@ if [ "$HA1_HB_IP" = "$HA2_HB_IP" ]; then
   exit 1
 fi
 HA_GATEWAY="$HA_NETWORK_123.$((HA_NETWORK_4+1))"
+HA1_HB_IP=192.168.0.$(echo $HA1_IP | awk -F. '{print $4}')
+HA2_HB_IP=192.168.0.$(echo $HA2_IP | awk -F. '{print $4}')
+HA1_NAME=$HA1_NODE.$HA_DOMAIN
+HA2_NAME=$HA2_NODE.$HA_DOMAIN
+HA1_HB_NODE=${HA1_NODE}-hb
+HA2_HB_NODE=${HA2_NODE}-hb
+HA1_HB_NAME=$HA1_HB_NODE.$HA_DOMAIN
+HA2_HB_NAME=$HA2_HB_NODE.$HA_DOMAIN
+HA_NAME=$HA_NODE.$HA_DOMAIN
+HA_GATEWAY_NAME=$HA_GATEWAY_NODE.$HA_DOMAIN
 [ -e /proc/net/bonding ] && NIC0=bond0 || NIC0=eth0
 [ -e /proc/net/bonding ] && NIC1=bond1 || NIC1=eth1
 [ "$(uname -n)" = "$HA1_NAME" ] && PRIV_IP=$HA1_IP || PRIV_IP=$HA2_IP
@@ -951,6 +1186,7 @@ HA_DEV1=xvdc
 if [ ! -d /proc/xen/ ]; then
   lsmod | grep -q ^aacraid && HA_DEV1=sdc || HA_DEV1=sda
 fi
+NFS_EXPORT_POINT=/backup
 :
 EOF
 
@@ -1060,10 +1296,6 @@ else
     echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
     exit 1
   fi
-  if [ ! "$MY_SL_ADMIN" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
-    exit 1
-  fi
   if [ ! "$DRBD_SIZE" ]; then
     echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
     exit 1
@@ -1122,12 +1354,12 @@ sed -i -e "s/gateway=[0-9.]* /gateway=$HA_GATEWAY /" /boot/grub/grub.conf
 
 cat << EOF | tee /etc/hosts
 127.0.0.1^localhost.localdomain localhost
-$HA_GATEWAY^$HA_GATEWAY_NAME $(echo $HA_GATEWAY_NAME | awk -F. '{print $1}')
-$HA1_IP^$HA1_NAME $(echo $HA1_NAME | awk -F. '{print $1}')
-$HA2_IP^$HA2_NAME $(echo $HA2_NAME | awk -F. '{print $1}')
-$HA_VIP^$HA_NAME $(echo $HA_NAME | awk -F. '{print $1}')
-$HA1_HB_IP^$HA1_HB_NAME $(echo $HA1_HB_NAME | awk -F. '{print $1}')
-$HA2_HB_IP^$HA2_HB_NAME $(echo $HA2_HB_NAME | awk -F. '{print $1}')
+$HA_GATEWAY^$HA_GATEWAY_NAME $HA_GATEWAY_NODE
+$HA_VIP^$HA_NAME $HA_NODE
+$HA1_IP^$HA1_NAME $HA1_NODE
+$HA2_IP^$HA2_NAME $HA2_NODE
+$HA1_HB_IP^$HA1_HB_NAME $HA1_HB_NODE
+$HA2_HB_IP^$HA2_HB_NAME $HA2_HB_NODE
 EOF
 sed -i -e 's/\^/\t/g' /etc/hosts
 
@@ -1401,6 +1633,73 @@ rsc_defaults migration-threshold="2"
 rsc_defaults resource-stickiness="200"
 EOF
 
+cat << EOF | tee /backup/ks/backup_boot_root.cfg
+install
+text
+reboot
+nfs --server=$HA_VIP --dir=/backup/co6.5
+lang en_US.UTF-8
+keyboard jp106
+timezone --utc Asia/Tokyo
+authconfig --enableshadow --passalgo=sha512
+rootpw password
+bootloader --location=none
+part / --recommended
+%packages
+@Core
+%end
+EOF
+cat << 'EOF' | tee -a /backup/ks/backup_boot_root.cfg
+%pre
+[ -d /proc/xen/ ] || exec < /dev/tty3 > /dev/tty3 2>&1
+[ -d /proc/xen/ ] || /usr/bin/chvt 3
+[ -d /proc/xen/ ] || set -x
+[ -d /proc/xen/ ] && DEV=xvda || DEV=sda
+ifconfig eth1 down
+[ -d /proc/xen/ ] || ifconfig eth3 down
+for i in $(cat /proc/cmdline)
+do
+  echo $i | grep -q = || continue
+  echo $i | grep -q -v ^= || continue
+  eval $i
+  echo $i
+done
+mkdir /mnt/sysimage
+mount /dev/${DEV}2 /mnt/sysimage
+mount /dev/${DEV}1 /mnt/sysimage/boot
+[ -e /proc/xen ] && sed -i -e '/^default=/d' -e 's/^##rescue##default=/default=/' -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=10.0.80.11%" /mnt/sysimage/boot/grub/grub.conf
+mkdir /backup
+mount -t nfs $(echo $ks | awk -F: '{print $2}'):/backup /backup
+if [ ! -d /backup/system ]; then
+  umount /backup
+  mount -o ro,remount /dev/${DEV}2 /mnt/sysimage
+  mount -o ro,remount /dev/${DEV}1 /mnt/sysimage/boot
+  reboot
+fi
+. /mnt/sysimage/etc/sysconfig/network
+DATETIME=$(TZ=JST-9 date +%Y%m%d%H%M)
+mkdir -p /backup/system/$HOSTNAME/$DATETIME
+cd /mnt/sysimage
+tar czf /backup/system/$HOSTNAME/$DATETIME/boot.tgz boot > /dev/null 2>&1
+umount /mnt/sysimage/boot
+tar czf /backup/system/$HOSTNAME/$DATETIME/root.tgz . > /dev/null 2>&1
+## other partition ##
+mount /dev/${DEV}1 /mnt/sysimage/boot
+[ -e /proc/xen ] && sed -i -e "s/backup=[0-9]* /backup=$DATETIME /" /boot/grub/grub.conf
+[ -e /proc/xen ] && reboot
+umount /backup
+mount -t proc /proc /mnt/sysimage/proc
+chroot /mnt/sysimage /usr/local/sbin/reboot_quick noreboot backup=$DATETIME
+mount -o ro,remount /dev/${DEV}2 /mnt/sysimage
+mount -o ro,remount /dev/${DEV}1 /mnt/sysimage/boot
+chroot /mnt/sysimage /sbin/kexec -e
+[ -e /proc/xen ] || /usr/bin/chvt 1
+reboot
+%end
+%post
+%end
+EOF
+
 if [ "$INIT_MODE" = "MASTER" ]; then
   echo yes | drbdadm wipe-md r0 || exit 1
   echo yes | drbdadm create-md r0 || exit 1
@@ -1420,6 +1719,9 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   /etc/init.d/nfs stop || exit 1
   /etc/init.d/nfslock stop || exit 1
   /etc/init.d/rpcbind stop || exit 1
+  chkconfig --del netfs || exit 1
+  chkconfig --del nfslock || exit 1
+  chkconfig --del rpcbind || exit 1
   umount /var/lib/nfs/rpc_pipefs/ || exit 1
   mv /var/lib/nfs /export/ || exit 1
   ln -s /export/nfs /var/lib/nfs || exit 1
@@ -1437,13 +1739,11 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
   crm_mon -1frA
-  mkdir -p /backup/ks || exit 1
-  chmod 700 /backup/ks || exit 1
-  mkdir -p /backup/co605/images || exit 1
-  chmod -R 700 /backup/co605 || exit 1
-  wget -q http://mirrors.service.networklayer.com/centos/6.5/isos/x86_64/CentOS-6.5-x86_64-minimal.iso -O /backup/co605/CentOS-6.5-x86_64-minimal.iso || exit 1
-  mount -o loop /backup/co605/CentOS-6.5-x86_64-minimal.iso /mnt || exit 1
-  cp /mnt/images/{install.img,updates.img} /backup/co605/images/ || exit 1
+  mkdir -p $NFS_EXPORT_POINT/ks || exit 1
+  mkdir -p $NFS_EXPORT_POINT/co$CENTOS_VER/images || exit 1
+  wget -q http://mirrors.service.networklayer.com/centos/$CENTOS_VER/isos/x86_64/CentOS-$CENTOS_VER-x86_64-minimal.iso -O $NFS_EXPORT_POINT/co$CENTOS_VER/CentOS-$CENTOS_VER-x86_64-minimal.iso || exit 1
+  mount -o loop $NFS_EXPORT_POINT/co$CENTOS_VER/CentOS-$CENTOS_VER-x86_64-minimal.iso /mnt || exit 1
+  cp /mnt/images/{install.img,updates.img} $NFS_EXPORT_POINT/co$CENTOS_VER/images/ || exit 1
   umount /mnt || exit 1
   cd / || exit 1
   if [ ! -e /root/.ssh/id_rsa ]; then
@@ -1459,6 +1759,9 @@ elif [ "$INIT_MODE" = "SLAVE" ]; then
   echo yes | drbdadm create-md r0 || exit 1
   mkdir /export || exit 1
   mkdir -p $NFS_EXPORT_POINT || exit 1
+  chkconfig --del netfs || exit 1
+  chkconfig --del nfslock || exit 1
+  chkconfig --del rpcbind || exit 1
   mkdir -p /var/lib/rpc_pipefs/ || exit 1
   rm -rf /var/lib/nfs || exit 1
   ln -s /export/nfs /var/lib/nfs || exit 1
@@ -1544,20 +1847,20 @@ for i in $(ls /etc/init.d/)
 do
   chkconfig --del $i
   case $i in
-    atd        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    auditd     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    crond      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    iptables   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    irqbalance ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    network    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    psacct     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    rsyslog    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    sshd       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    udev-post  ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    watchdog   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    netfs      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
-    nfslock    ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
-    rpcbind    ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    atd          ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    auditd       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    crond        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    iptables     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    irqbalance   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    network      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    psacct       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    rsyslog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    sshd         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    udev-post    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    watchdog     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    netfs        ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    nfslock      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    rpcbind      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
   esac
 done
 if [ -d /proc/xen/ ]; then
@@ -1570,9 +1873,6 @@ else
     chkconfig --add EventMonitorService || $Error
     chkconfig EventMonitorService on    || $Error
   fi
-fi
-if [ -e /dev/vg0 ]; then
-  chkconfig --add lvm2-monitor || $Error
 fi
 
 cat << 'EOF' | tee /etc/ssh/sshd_config || $Error
