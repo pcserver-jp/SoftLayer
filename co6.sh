@@ -1002,7 +1002,7 @@ my \$password = '$MAIL_PW';
 my \$hello = '$MAIL_HELLO';
 my \$from = '$MAIL_FROM';
 EOF
-cat << 'EOF' | tee -a/usr/local/bin/sendalert || $Error
+cat << 'EOF' | tee -a /usr/local/bin/sendalert || $Error
 
 my $to = $ARGV[0];
 my $subject = encode( "MIME-Header-ISO_2022_JP", $ARGV[1] );
