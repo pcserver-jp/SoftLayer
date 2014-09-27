@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#https://raw.githubusercontent.com/pcserver-jp/SoftLayer/master/co6.sh
+
 MY_ROOT_PW=
 MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_INIT_PW=sl-admin
@@ -34,7 +36,9 @@ if ! grep -q ^ssh- /root/.ssh/authorized_keys; then
 fi
 
 if [ ! -e /root/post_install.sh -a $(ls /root/post_install.* | wc -l) -eq 1 ];then
-  [ -x /root/post_install.* ] && mv /root/post_install.* /root/post_install.sh 2> /dev/null
+  if [ -x /root/post_install.* ]; then
+    mv /root/post_install.* /root/post_install.sh 2> /dev/null || $Error
+  fi
 fi
 exec > /root/post_install.log || $Error
 exec 2>&1 || $Error
@@ -290,7 +294,7 @@ ps -ef || $Error
 chkconfig --list || $Error
 if grep ' /disk' /etc/fstab; then
   sed -i -e '/ \/disk/d' /etc/fstab || $Error
-  umount /disk*
+  umount /disk* || :
   while umount /disk1; do :; done
   rmdir /disk* || :
   sed -i -e '/ swap  *swap /d' /etc/fstab || $Error
@@ -793,18 +797,18 @@ cat /usr/Adaptec_Event_Monitor/SMTP_Server_Details.cfg || $Error
 cat /usr/Adaptec_Event_Monitor/NRMFSAConfig.xml  || $Error
 sed -i -e 's/^nrm.debugMask.*$/nrm.debugMask = 2/' /usr/Adaptec_Event_Monitor/NRMConfig.conf || $Error
 
-yum -y localinstall https://raw.githubusercontent.com/pcserver-jp/stone/master/stone-2.3e-2.3.3.17.el6.x86_64.rpm
-openssl req -new -outform pem -out /etc/pki/tls/certs/stone.pem -newkey rsa:1024 -keyout stone.key -nodes -rand ./rand.pat -x509 -batch -days 36500
-cat stone.key | tee -a /etc/pki/tls/certs/stone.pem > /dev/null
-chmod 400 /etc/pki/tls/certs/stone.pem
-rm -f stone.key
-groupadd -g 17 stoned
-useradd -g stoned -u 17 -c "Stone Daemon" -N -r -M -d / -s /sbin/nologin stoned
-mkdir -p /var/chroot/stoned
-cat << 'EOF' | tee /etc/stoned.conf
+yum -y localinstall https://raw.githubusercontent.com/pcserver-jp/stone/master/stone-2.3e-2.3.3.17.el6.x86_64.rpm || $Error
+openssl req -new -outform pem -out /etc/pki/tls/certs/stone.pem -newkey rsa:1024 -keyout stone.key -nodes -rand ./rand.pat -x509 -batch -days 36500 || $Error
+cat stone.key | tee -a /etc/pki/tls/certs/stone.pem > /dev/null || $Error
+chmod 400 /etc/pki/tls/certs/stone.pem || $Error
+rm -f stone.key || $Error
+groupadd -g 17 stoned || $Error
+useradd -g stoned -u 17 -c "Stone Daemon" -N -r -M -d / -s /sbin/nologin stoned || $Error
+mkdir -p /var/chroot/stoned || $Error
+cat << 'EOF' | tee /etc/stoned.conf || $Error
 localhost:22 443/ssl
 EOF
-cat << 'EOF' | tee /etc/init.d/stoned
+cat << 'EOF' | tee /etc/init.d/stoned || $Error
 #!/bin/bash
 #
 # stoned        Starts stone daemon.
@@ -883,7 +887,7 @@ esac
 
 exit $RETVAL
 EOF
-chmod 755 /etc/init.d/stoned
+chmod 755 /etc/init.d/stoned || $Error
 
 yum -y install \
  dialog \
@@ -904,7 +908,7 @@ yum -y --enablerepo=epel install \
 
 yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
-yum -y --enablerepo=pgdg93 install postgresql93\*
+yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
@@ -947,7 +951,7 @@ EOF
   echo 'user = SL999999:abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01' | tee /home/$MY_SL_ADMIN/.softlayer.user || $Error
 fi
 
-cat << 'EOF' | tee /usr/local/bin/sendalert
+cat << 'EOF' | tee /usr/local/bin/sendalert || $Error
 #!/usr/bin/perl
 
 use strict;
@@ -972,7 +976,7 @@ $smtp->to($to);
 $smtp->data($mime->stringify);
 $smtp->quit();
 EOF
-chmod 700 /usr/local/bin/sendalert
+chmod 700 /usr/local/bin/sendalert || $Error
 
 cat /etc/sysconfig/ipmi || $Error
 sed -i -e 's/^IPMI_WATCHDOG=.*$/IPMI_WATCHDOG=yes/' /etc/sysconfig/ipmi || $Error
@@ -1779,7 +1783,7 @@ else
   exit 1
 fi
 EOF_NFSSERVER_FOR_BACKUP
-chmod 755 /etc/ha.d/mk_nfsserver_for_backup
+chmod 755 /etc/ha.d/mk_nfsserver_for_backup || $Error
 
 cat << 'EOF' | tee /rescue/mk_bond0 || $Error
 #!/bin/sh
@@ -1813,31 +1817,31 @@ kill -KILL $(ps -ef | grep [s]shd | grep anaconda | awk '{print $2}') > /dev/nul
 EOF
 chmod 755 /rescue/mk_secure || $Error
 
-#cat << 'EOF' | tee /rescue/mount || $Error
-##!/bin/sh
-#mkdir -p /backup
-#[ "$1" ] && mount -t nfs $1:/backup /backup
-#[ -d /proc/xen/ ] && DEV=xvda || DEV=sda
-#mount -o rw,remount /dev/${DEV}2 /mnt/sysimage/
-#mount /dev/${DEV}1 /mnt/sysimage/boot
-#[ "$2" = "all" ] || exit 0
-#mount -t proc /proc /mnt/sysimage/proc
-#mount -t sysfs /sys /mnt/sysimage/sys
-#mount --bind /dev /mnt/sysimage/dev
-#EOF
-#chmod 755 /rescue/mount || $Error
+cat << 'EOF' | tee /rescue/mount || $Error
+#!/bin/sh
+mkdir -p /backup
+[ "$1" ] && mount -t nfs $1:/backup /backup
+[ -d /proc/xen/ ] && DEV=xvda || DEV=sda
+mount -o rw,remount /dev/${DEV}2 /mnt/sysimage/
+mount /dev/${DEV}1 /mnt/sysimage/boot
+[ "$2" = "all" ] || exit 0
+mount -t proc /proc /mnt/sysimage/proc
+mount -t sysfs /sys /mnt/sysimage/sys
+mount --bind /dev /mnt/sysimage/dev
+EOF
+chmod 755 /rescue/mount || $Error
 
-#cat << 'EOF' | tee /rescue/unmount || $Error
-##!/bin/sh
-#umount /mnt/sysimage/dev
-#umount /mnt/sysimage/sys
-#umount /mnt/sysimage/proc
-#umount /mnt/sysimage/boot
-#[ -d /proc/xen/ ] && DEV=xvda || DEV=sda
-#mount -o ro,remount /dev/${DEV}2 /mnt/sysimage/
-#umount /backup
-#EOF
-#chmod 755 /rescue/unmount || $Error
+cat << 'EOF' | tee /rescue/unmount || $Error
+#!/bin/sh
+umount /mnt/sysimage/dev
+umount /mnt/sysimage/sys
+umount /mnt/sysimage/proc
+umount /mnt/sysimage/boot
+[ -d /proc/xen/ ] && DEV=xvda || DEV=sda
+mount -o ro,remount /dev/${DEV}2 /mnt/sysimage/
+umount /backup
+EOF
+chmod 755 /rescue/unmount || $Error
 
 if grep -q -v ^# /etc/cron.d/raid-check; then
   sed -i -e 's/^/#/' /etc/cron.d/raid-check || $Error
@@ -1845,7 +1849,7 @@ fi
 
 for i in $(ls /etc/init.d/)
 do
-  chkconfig --del $i
+  chkconfig --del $i || :
   case $i in
     atd          ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     auditd       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
