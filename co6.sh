@@ -1681,7 +1681,47 @@ rsc_defaults migration-threshold="2"
 rsc_defaults resource-stickiness="200"
 EOF
 
-cat << EOF | tee /backup/ks/backup_boot_root.cfg
+if [ "$INIT_MODE" = "MASTER" ]; then
+  echo yes | drbdadm wipe-md r0 || exit 1
+  echo yes | drbdadm create-md r0 || exit 1
+  sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf || exit 1
+  /etc/init.d/drbd start || exit 1
+  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
+  drbdadm primary --force all || exit 1
+  mkfs.ext4 /dev/drbd0 || exit 1
+  tune2fs -c 0 -i 0 /dev/drbd0 || exit 1
+  mkdir /export || exit 1
+  mkdir -p $NFS_EXPORT_POINT || exit 1
+  mkdir -p /var/lib/rpc_pipefs/ || exit 1
+  mount /dev/drbd0 /export || exit 1
+  /etc/init.d/rpcbind start || exit 1
+  /etc/init.d/nfslock start || exit 1
+  /etc/init.d/nfs start || exit 1
+  /etc/init.d/nfs stop || exit 1
+  /etc/init.d/nfslock stop || exit 1
+  /etc/init.d/rpcbind stop || exit 1
+  chkconfig --del netfs || exit 1
+  chkconfig --del nfslock || exit 1
+  chkconfig --del rpcbind || exit 1
+  umount /var/lib/nfs/rpc_pipefs/ || exit 1
+  mv /var/lib/nfs /export/ || exit 1
+  ln -s /export/nfs /var/lib/nfs || exit 1
+  rmdir /export/nfs/rpc_pipefs/ || exit 1
+  ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs || exit 1
+  mkdir -p /export$NFS_EXPORT_POINT/system || exit 1
+  chmod 700 /export$NFS_EXPORT_POINT/system || exit 1
+  chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT || exit 1
+  umount /export/ || exit 1
+  drbdadm secondary all || exit 1
+  /etc/init.d/drbd stop || exit 1
+  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
+  /etc/init.d/heartbeat start || exit 1
+  while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
+  crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
+  while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
+  crm_mon -1frA
+  mkdir -p $NFS_EXPORT_POINT/ks || exit 1
+  cat << EOF | tee $NFS_EXPORT_POINT/ks/backup_boot_root.cfg
 install
 text
 reboot
@@ -1697,7 +1737,7 @@ part / --recommended
 @Core
 %end
 EOF
-cat << 'EOF' | tee -a /backup/ks/backup_boot_root.cfg
+cat << 'EOF' | tee -a $NFS_EXPORT_POINT/ks/backup_boot_root.cfg
 %pre
 [ -d /proc/xen/ ] || exec < /dev/tty3 > /dev/tty3 2>&1
 [ -d /proc/xen/ ] || /usr/bin/chvt 3
@@ -1747,47 +1787,6 @@ reboot
 %post
 %end
 EOF
-
-if [ "$INIT_MODE" = "MASTER" ]; then
-  echo yes | drbdadm wipe-md r0 || exit 1
-  echo yes | drbdadm create-md r0 || exit 1
-  sed -i -e '/wfc-timeout/ s/^#wfc#//' /etc/drbd.d/global_common.conf || exit 1
-  /etc/init.d/drbd start || exit 1
-  sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
-  drbdadm primary --force all || exit 1
-  mkfs.ext4 /dev/drbd0 || exit 1
-  tune2fs -c 0 -i 0 /dev/drbd0 || exit 1
-  mkdir /export || exit 1
-  mkdir -p $NFS_EXPORT_POINT || exit 1
-  mkdir -p /var/lib/rpc_pipefs/ || exit 1
-  mount /dev/drbd0 /export || exit 1
-  /etc/init.d/rpcbind start || exit 1
-  /etc/init.d/nfslock start || exit 1
-  /etc/init.d/nfs start || exit 1
-  /etc/init.d/nfs stop || exit 1
-  /etc/init.d/nfslock stop || exit 1
-  /etc/init.d/rpcbind stop || exit 1
-  chkconfig --del netfs || exit 1
-  chkconfig --del nfslock || exit 1
-  chkconfig --del rpcbind || exit 1
-  umount /var/lib/nfs/rpc_pipefs/ || exit 1
-  mv /var/lib/nfs /export/ || exit 1
-  ln -s /export/nfs /var/lib/nfs || exit 1
-  rmdir /export/nfs/rpc_pipefs/ || exit 1
-  ln -s /var/lib/rpc_pipefs /export/nfs/rpc_pipefs || exit 1
-  mkdir -p /export$NFS_EXPORT_POINT/system || exit 1
-  chmod 700 /export$NFS_EXPORT_POINT/system || exit 1
-  chown -R nfsnobody:nfsnobody /export$NFS_EXPORT_POINT || exit 1
-  umount /export/ || exit 1
-  drbdadm secondary all || exit 1
-  /etc/init.d/drbd stop || exit 1
-  rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
-  /etc/init.d/heartbeat start || exit 1
-  while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
-  crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
-  while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
-  crm_mon -1frA
-  mkdir -p $NFS_EXPORT_POINT/ks || exit 1
   mkdir -p $NFS_EXPORT_POINT/co$CENTOS_VER/images || exit 1
   wget -q http://mirrors.service.networklayer.com/centos/$CENTOS_VER/isos/x86_64/CentOS-$CENTOS_VER-x86_64-minimal.iso -O $NFS_EXPORT_POINT/co$CENTOS_VER/CentOS-$CENTOS_VER-x86_64-minimal.iso || exit 1
   mount -o loop $NFS_EXPORT_POINT/co$CENTOS_VER/CentOS-$CENTOS_VER-x86_64-minimal.iso /mnt || exit 1
