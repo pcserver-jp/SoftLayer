@@ -135,8 +135,8 @@ do
   for j in "" --show-features
   do
     : --------------------------------------------------------------------------------
-    ethtool $j $i 2> /dev/null
-  done;
+    ethtool $j $i 2> /dev/null || $Error
+  done
 done
 : --------------------------------------------------------------------------------
 [ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0
@@ -1161,10 +1161,6 @@ if [ "$HA_NETWORK_4" != "$(($(echo $HA2_IP | awk -F. '{print $4}') & -64))" ]; t
   exit 1
 fi
 if [ "$HA_VIP" = "$HA1_IP" -o "$HA_VIP" = "$HA2_IP" -o "$HA1_IP" = "$HA2_IP" ]; then
-  echo "Error: Network Configuration"
-  exit 1
-fi
-if [ "$HA1_HB_IP" = "$HA2_HB_IP" ]; then
   echo "Error: Network Configuration"
   exit 1
 fi
