@@ -9,6 +9,14 @@ MY_SL_ADMIN_ID=65501
 WHEEL_SUDO_NOPASSWD=yes
 CENTOS_VER=6.5
 
+SL_ACCOUNT=SL999999
+SL_API_KEY=abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
+
+MAIL_USER=softlayer@example.com
+MAIL_PW=password
+MAIL_HELLO=example.com
+MAIL_FROM=softlayer@example.com
+
 print_error_message_and_sleep()
 {
   local R=$?
@@ -356,24 +364,34 @@ cat << 'EOF_FSTAB' | tee -a /etc/fstab
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
 EOF_FSTAB
 swapon -a
+if [ -e /dev/sdc ]; then
+  echo Yes | parted /dev/sdc mklabel msdos
+  echo Yes | parted /dev/sdc mklabel gpt
+  echo Yes | parted /dev/sdc mkpart primary 1MiB 100% set 1 lvm on
+  pvcreate /dev/sdc1
+  vgcreate -s 32M vg0 /dev/sdc1
+  chkconfig --add lvm2-monitor
+  for i in d e f g h i j k l m n o p q r s t u v w x y z
+  do
+    [ -e /dev/sd$i ] || break
+    echo Yes | parted /dev/sd$i mklabel msdos
+    echo Yes | parted /dev/sd$i mklabel gpt
+    echo Yes | parted /dev/sd$i mkpart primary 1MiB 100% set 1 lvm on
+    pvcreate /dev/sd${i}1
+    vgextend vg0 /dev/sd${i}1
+  done
+fi
 rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdc ]; then
       echo Yes | parted /dev/sdc mklabel msdos || :
       dd if=/dev/zero of=/dev/sdc bs=1M count=10 || $Error
-      echo Yes | parted /dev/sdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-      pvcreate /dev/sdc1 || $Error
-      vgcreate -s 32M vg0 /dev/sdc1 || $Error
-      chkconfig --add lvm2-monitor || $Error
       for i in d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
         dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
-        echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-        pvcreate /dev/sd${i}1 || $Error
-        vgextend vg0 /dev/sd${i}1 || :
       done
     fi
   else
@@ -387,23 +405,33 @@ cat << 'EOF_FSTAB' | tee -a /etc/fstab
 EOF_FSTAB
 swapon -a
 rm -f /rescue/once
+if [ -e /dev/sdb ]; then
+  echo Yes | parted /dev/sdb mklabel msdos
+  echo Yes | parted /dev/sdb mklabel gpt
+  echo Yes | parted /dev/sdb mkpart primary 1MiB 100% set 1 lvm on
+  pvcreate /dev/sdb1
+  vgcreate -s 32M vg0 /dev/sdb1
+  chkconfig --add lvm2-monitor
+  for i in c d e f g h i j k l m n o p q r s t u v w x y z
+  do
+    [ -e /dev/sd$i ] || break
+    echo Yes | parted /dev/sd$i mklabel msdos
+    echo Yes | parted /dev/sd$i mklabel gpt
+    echo Yes | parted /dev/sd$i mkpart primary 1MiB 100% set 1 lvm on
+    pvcreate /dev/sd${i}1
+    vgextend vg0 /dev/sd${i}1
+  done
+fi
 EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdb ]; then
       echo Yes | parted /dev/sdb mklabel msdos || :
       dd if=/dev/zero of=/dev/sdb bs=1M count=10 || $Error
-      echo Yes | parted /dev/sdb mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-      pvcreate /dev/sdb1 || $Error
-      vgcreate -s 32M vg0 /dev/sdb1 || $Error
-      chkconfig --add lvm2-monitor || $Error
       for i in c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
         dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
-        echo Yes | parted /dev/sd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-        pvcreate /dev/sd${i}1 || $Error
-        vgextend vg0 /dev/sd${i}1 || :
       done
     fi
   fi
@@ -441,24 +469,34 @@ UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
 EOF_FSTAB
 swapon -a
 rm -f /rescue/once
+if [ -e /dev/xvdc ]; then
+  echo Yes | parted /dev/xvdc mklabel msdos
+  echo Yes | parted /dev/xvdc mklabel gpt
+  echo Yes | parted /dev/xvdc mkpart primary 1MiB 100% set 1 lvm on
+  pvcreate /dev/xvdc1
+  vgcreate -s 32M vg0 /dev/xvdc1
+  chkconfig --add lvm2-monitor
+  for i in d e f
+  do
+    [ -e /dev/xvd$i ] || break
+    echo Yes | parted /dev/xvd$i mklabel msdos
+    echo Yes | parted /dev/xvd$i mklabel gpt
+    echo Yes | parted /dev/xvd$i mkpart primary 1MiB 100% set 1 lvm on
+    pvcreate /dev/xvd${i}1
+    vgextend vg0 /dev/xvd${i}1
+  done
+fi
 EOF
   chmod 755 /rescue/once || $Error
 fi
 if [ -e /dev/xvdc ]; then
   echo Yes | parted /dev/xvdc mklabel msdos || :
   dd if=/dev/zero of=/dev/xvdc bs=1M count=10 || $Error
-  echo Yes | parted /dev/xvdc mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-  pvcreate /dev/xvdc1 || $Error
-  vgcreate -s 32M vg0 /dev/xvdc1 || $Error
-  chkconfig --add lvm2-monitor || $Error
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
     echo Yes | parted /dev/xvd$i mklabel msdos || :
     dd if=/dev/zero of=/dev/xvd$i bs=1M count=10 || $Error
-    echo Yes | parted /dev/xvd$i mklabel gpt mkpart primary 1MiB 100% set 1 lvm on || $Error
-    pvcreate /dev/xvd${i}1 || $Error
-    vgextend vg0 /dev/xvd${i}1 || $Error
   done
 fi
 blkid
@@ -938,20 +976,20 @@ if [ ! -e /home/$MY_SL_ADMIN/.softlayer ]; then
   touch /home/$MY_SL_ADMIN/.softlayer || $Error
   chmod 600 /home/$MY_SL_ADMIN/.softlayer || $Error
   chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer || $Error
-  cat << 'EOF' | tee /home/$MY_SL_ADMIN/.softlayer || $Error
+  cat << EOF | tee /home/$MY_SL_ADMIN/.softlayer || $Error
 [softlayer]
-username = SL999999
-api_key = abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
+username = $SL_ACCOUNT
+api_key = $SL_API_KEY
 endpoint_url = https://api.service.softlayer.com/xmlrpc/v3.1
 timeout = 10
 EOF
   touch /home/$MY_SL_ADMIN/.softlayer.user || $Error
   chmod 600 /home/$MY_SL_ADMIN/.softlayer.user || $Error
   chown $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.softlayer.user || $Error
-  echo 'user = SL999999:abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01' | tee /home/$MY_SL_ADMIN/.softlayer.user || $Error
+  echo "user = SL_ACCOUNT:$SL_API_KEY" | tee /home/$MY_SL_ADMIN/.softlayer.user || $Error
 fi
 
-cat << 'EOF' | tee /usr/local/bin/sendalert || $Error
+cat << EOF | tee /usr/local/bin/sendalert || $Error
 #!/usr/bin/perl
 
 use strict;
@@ -959,10 +997,12 @@ use MIME::Entity;
 use Net::SMTP;
 use Encode;
 
-my $username = 'softlayer@example.com';
-my $password = 'password';
-my $hello = 'example.com';
-my $from = 'softlayer@example.com';
+my \$username = '$MAIL_USER';
+my \$password = '$MAIL_PW';
+my \$hello = '$MAIL_HELLO';
+my \$from = '$MAIL_FROM';
+EOF
+cat << 'EOF' | tee -a/usr/local/bin/sendalert || $Error
 
 my $to = $ARGV[0];
 my $subject = encode( "MIME-Header-ISO_2022_JP", $ARGV[1] );
@@ -1235,6 +1275,10 @@ elif [ "$1" ]; then
     echo "Please check hostname."
     exit 1
   fi
+  if [ ! -e /dev/vg0 ]; then
+    echo No /dev/vg0
+    exit 1
+  fi
   sudo nohup $0 SLAVE &
   echo && echo "Please log in to this server ($PRIV_IP) again and check log: nohup.out"
   exit 0
@@ -1314,6 +1358,10 @@ else
   fi
   if [ "$(uname -n)" != "$HA1_NAME" ];then
     echo "Please check hostname."
+    exit 1
+  fi
+  if [ ! -e /dev/vg0 ]; then
+    echo No /dev/vg0
     exit 1
   fi
   sudo nohup $0 MASTER &
