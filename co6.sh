@@ -941,22 +941,51 @@ chmod 755 /etc/init.d/stoned || $Error
 
 yum -y install \
  dialog \
+ dstat \
+ iotop \
+ iptstate \
+ latencytop-tui \
+ ltrace \
  nfs-utils \
  perl-Authen-SASL \
  perl-MIME-tools \
+ powertop \
  python-setuptools \
  screen \
  telnet \
  watchdog || $Error
 
 yum -y --enablerepo=epel install \
+ apachetop \
+ atop \
  bash-completion \
+ dnstop \
+ ethstatus \
  fio \
+ ftop \
+ htop \
+ ifstatus \
+ iftop \
+ innotop \
  lsyncd \
+ munin \
+ munin-node \
  mx \
- pv || $Error
+ mytop \
+ netstat-nat \
+ ntop \
+ pipestat \
+ pv \
+ tcptraceroute \
+ vnstat || $Error
 
 yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
+
+yum -y localinstall http://www.percona.com/downloads/XtraBackup/LATEST/binary/redhat/6/x86_64/percona-xtrabackup-2.2.4-5004.el6.x86_64.rpm
+
+yum -y localinstall http://www.percona.com/downloads/percona-toolkit/LATEST/RPM/percona-toolkit-2.2.11-1.noarch.rpm
+
+#yum -y localinstall file:///C:/Users/dba/Documents/Downloads/percona-zabbix-templates-1.1.4-1.noarch.rpm
 
 yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 
@@ -1049,6 +1078,9 @@ cat << 'EOF' | tee /etc/sysconfig/watchdog || $Error
 VERBOSE=no
 [ -d /proc/xen/ ] && modprobe softdog
 EOF
+
+cat /etc/sysconfig/sysstat || $Error
+sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
 
 cat /etc/sysconfig/nfs || $Error
 cat << 'EOF' | tee /etc/sysconfig/nfs || $Error
@@ -1287,7 +1319,7 @@ elif [ "$1" ]; then
     echo "Please check hostname."
     exit 1
   fi
-  if ! vgdisplay | grep ' vg0$'; then
+  if ! sudo vgdisplay | grep ' vg0$'; then
     echo No vg0 volume group.
     exit 1
   fi
@@ -1372,7 +1404,7 @@ else
     echo "Please check hostname."
     exit 1
   fi
-  if ! vgdisplay | grep ' vg0$'; then
+  if ! sudo vgdisplay | grep ' vg0$'; then
     echo No vg0 volume group.
     exit 1
   fi
@@ -1915,8 +1947,10 @@ do
     psacct       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     rsyslog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     sshd         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    sysstat      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     udev-post    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     watchdog     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+
     netfs        ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
     nfslock      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
     rpcbind      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
