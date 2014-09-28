@@ -390,12 +390,12 @@ EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdc ]; then
       echo Yes | parted /dev/sdc mklabel msdos || :
-      dd if=/dev/zero of=/dev/sdc bs=1M count=100 || $Error
+      dd if=/dev/zero of=/dev/sdc bs=1M count=10 || $Error
       for i in d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=100 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
       done
     fi
   else
@@ -411,7 +411,6 @@ cat << 'EOF_FSTAB' | tee -a /etc/fstab
 /.swap                                    swap  swap    pri=0,defaults  0 0
 EOF_FSTAB
 swapon -a
-rm -f /rescue/once
 if [ -e /dev/sdb ]; then
   chkconfig --add lvm2-monitor
   /etc/init.d/lvm2-monitor start
@@ -430,16 +429,17 @@ if [ -e /dev/sdb ]; then
     vgextend vg0 /dev/sd${i}1
   done
 fi
+rm -f /rescue/once
 EOF
     chmod 755 /rescue/once || $Error
     if [ -e /dev/sdb ]; then
       echo Yes | parted /dev/sdb mklabel msdos || :
-      dd if=/dev/zero of=/dev/sdb bs=1M count=100 || $Error
+      dd if=/dev/zero of=/dev/sdb bs=1M count=10 || $Error
       for i in c d e f g h i j k l m n o p q r s t u v w x y z
       do
         [ -e /dev/sd$i ] || break
         echo Yes | parted /dev/sd$i mklabel msdos || :
-        dd if=/dev/zero of=/dev/sd$i bs=1M count=100 || $Error
+        dd if=/dev/zero of=/dev/sd$i bs=1M count=10 || $Error
       done
     fi
   fi
@@ -479,7 +479,6 @@ cat << 'EOF_FSTAB' | tee -a /etc/fstab
 UUID=299ff4da-8897-405b-ae8e-5648a14fc81e swap  swap    pri=9,defaults  0 0
 EOF_FSTAB
 swapon -a
-rm -f /rescue/once
 if [ -e /dev/xvdc ]; then
   chkconfig --add lvm2-monitor
   /etc/init.d/lvm2-monitor start
@@ -498,17 +497,18 @@ if [ -e /dev/xvdc ]; then
     vgextend vg0 /dev/xvd${i}1
   done
 fi
+rm -f /rescue/once
 EOF
   chmod 755 /rescue/once || $Error
 fi
 if [ -e /dev/xvdc ]; then
   echo Yes | parted /dev/xvdc mklabel msdos || :
-  dd if=/dev/zero of=/dev/xvdc bs=1M count=100 || $Error
+  dd if=/dev/zero of=/dev/xvdc bs=1M count=10 || $Error
   for i in d e f
   do
     [ -e /dev/xvd$i ] || break
     echo Yes | parted /dev/xvd$i mklabel msdos || :
-    dd if=/dev/zero of=/dev/xvd$i bs=1M count=100 || $Error
+    dd if=/dev/zero of=/dev/xvd$i bs=1M count=10 || $Error
   done
 fi
 blkid
@@ -1287,8 +1287,8 @@ elif [ "$1" ]; then
     echo "Please check hostname."
     exit 1
   fi
-  if [ ! -e /dev/vg0 ]; then
-    echo No /dev/vg0
+  if ! vgdisplay | grep ' vg0$'; then
+    echo No vg0 volume group.
     exit 1
   fi
   sudo nohup $0 SLAVE &
@@ -1372,8 +1372,8 @@ else
     echo "Please check hostname."
     exit 1
   fi
-  if [ ! -e /dev/vg0 ]; then
-    echo No /dev/vg0
+  if ! vgdisplay | grep ' vg0$'; then
+    echo No vg0 volume group.
     exit 1
   fi
   sudo nohup $0 MASTER &
@@ -1393,7 +1393,7 @@ fi
 
 date
 set -x
-if [ ! -e /dev/vg0/drbd0 ]; then
+if ! lvdisplay | grep /dev/vg0/drbd0; then
   lvcreate --name drbd0 --size $DRBD_SIZE vg0 || exit 1
 fi
 
