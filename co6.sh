@@ -17,6 +17,21 @@ MAIL_PW=password
 MAIL_HELLO=example.com
 MAIL_FROM=softlayer@example.com
 
+cat << EOF | tee /etc/ha.d/param_cluster
+HA1_IP=
+HA2_IP=
+HA_VIP=
+HA_DOMAIN=example.com
+HA1_NODE=backup11
+HA2_NODE=backup12
+HA_NODE=backup1
+HA_GATEWAY_NODE=gateway1
+SSH_CLIENTS=10.0.0.0/8
+DRBD_SIZE=90G
+DRBD_PASSWORD=password
+VIP_CLIENTS=10.0.0.0/8
+EOF
+
 print_error_message_and_sleep()
 {
   local R=$?
@@ -602,6 +617,11 @@ if [ "$1" = "" ]; then
   echo Usage: $0  nfsserver_ip_address
   exit 1
 fi
+echo "rpcinfo $1"
+if ! rpcinfo $1; then
+  echo "Invalid Parameter: $1"
+  exit 1
+fi
 if [ -d /proc/xen/ ]; then
   sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(grep ^title /boot/grub/grub.conf | wc -l)-1))/" -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz lang=en_US keymap=jp106 selinux=0 ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') ks=nfs:$1:/backup/ks/backup_boot_root.cfg%" /boot/grub/grub.conf && reboot
 else
@@ -1131,7 +1151,7 @@ sed -i -e "s/gateway=[0-9.]* /gateway=$GATEWAY /" /boot/grub/grub.conf
 EOF
 chmod 755 /rescue/mk_portable_ip || $Error
 
-cat << EOF | tee /etc/ha.d/_start || $Error
+cat << 'EOF' | tee /etc/ha.d/_start || $Error
 #!/bin/bash
 while ! grep ds:UpToDate/ /proc/drbd > /dev/null;
 do
@@ -1141,7 +1161,7 @@ lvremove -f /dev/vg0/drbd0_snap
 EOF
 chmod 755 /etc/ha.d/_start || $Error
 
-cat << EOF | tee /etc/ha.d/start || $Error
+cat << 'EOF' | tee /etc/ha.d/start || $Error
 #!/bin/bash
 /etc/init.d/heartbeat status && exit 0
 if [ ! -b /dev/vg0/drbd0_snap ]; then
@@ -1152,19 +1172,19 @@ nohup /etc/ha.d/_start > /dev/null 2>&1 &
 EOF
 chmod 755 /etc/ha.d/start || $Error
 
-cat << EOF | tee /etc/ha.d/stop || $Error
+cat << 'EOF' | tee /etc/ha.d/stop || $Error
 #!/bin/bash
 /etc/init.d/heartbeat stop
 EOF
 chmod 755 /etc/ha.d/stop || $Error
 
-cat << EOF | tee /etc/ha.d/which || $Error
+cat << 'EOF' | tee /etc/ha.d/which || $Error
 #!/bin/bash
 crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
 EOF
 chmod 755 /etc/ha.d/which || $Error
 
-cat << EOF | tee /etc/ha.d/switch || $Error
+cat << 'EOF' | tee /etc/ha.d/switch || $Error
 #!/bin/bash
 crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
 crm resource move p_vip 2> /dev/null
@@ -1184,48 +1204,81 @@ crm_mon -rfA1 | grep 'p_vip.*IPsrcaddr'
 EOF
 chmod 755 /etc/ha.d/switch || $Error
 
-cat << EOF | tee /etc/ha.d/record || $Error
+cat << 'EOF' | tee /etc/ha.d/record || $Error
 #!/bin/bash
-crm_mon -rfA1 | grep -v ^Last > /etc/ha.d/_record
+crm_mon -rfA1 | grep -v ^Last | grep -v ^Current > /etc/ha.d/_record
+crm configure show >> /etc/ha.d/_record
+sed -n 's/^.*\(ds:[^ ]* \).*$/\1/p' /proc/drbd >> /etc/ha.d/_record
+#ps -o uid,pid,args -e | sed -n 's/^ *0 \(.*[h]eartbeat.*\)$/\1/p' | LANG=C sort >> /etc/ha.d/_record
 [ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0 >> /etc/ha.d/_record
 [ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1 >> /etc/ha.d/_record
+cat /etc/ha.d/_record
 EOF
 chmod 755 /etc/ha.d/record || $Error
 
-cat << EOF | tee /etc/ha.d/diff || $Error
+cat << 'EOF' | tee /etc/ha.d/diff || $Error
 #!/bin/bash
 if [ ! -e /etc/ha.d/_record ]; then
   echo /etc/ha.d/record was not executed.
   exit 1
 fi
-crm_mon -rfA1 | grep -v ^Last > /etc/ha.d/_now
+crm_mon -rfA1 | grep -v ^Last | grep -v ^Current > /etc/ha.d/_now
+crm configure show >> /etc/ha.d/_now
+sed -n 's/^.*\(ds:[^ ]* \).*$/\1/p' /proc/drbd >> /etc/ha.d/_now
+#ps -o uid,pid,args -e | sed -n 's/^ *0 \(.*[h]eartbeat.*\)$/\1/p' | LANG=C sort >> /etc/ha.d/_now
 [ -e /proc/net/bonding/bond0 ] && cat /proc/net/bonding/bond0 >> /etc/ha.d/_now
 [ -e /proc/net/bonding/bond1 ] && cat /proc/net/bonding/bond1 >> /etc/ha.d/_now
 diff /etc/ha.d/_record /etc/ha.d/_now
 EOF
 chmod 755 /etc/ha.d/diff || $Error
 
+cat << 'EOF' | tee /etc/ha.d/destroy || $Error
 #!/bin/bash
-cat << EOF | tee /etc/ha.d/param_nfsserver_for_backup || $Error
-HA1_IP=
-HA2_IP=
-HA_VIP=
-HA_DOMAIN=example.com
-HA1_NODE=backup11
-HA2_NODE=backup12
-HA_NODE=backup1
-HA_GATEWAY_NODE=gateway1
-SSH_CLIENTS=10.0.0.0/8
-DRBD_SIZE=90G
-DRBD_PASSWORD=password
-NFS_CLIENTS=10.0.0.0/8
+/etc/init.d/heartbeat stop
+rm -f $(sudo find /var/lib/pengine/) $(sudo find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
+> /var/log/ha-log
 EOF
+chmod 755 /etc/ha.d/destroy || $Error
 
-cat << EOF | tee /etc/ha.d/param_all_nfsserver_for_backup || $Error
-. /etc/ha.d/param_nfsserver_for_backup
+cat << 'EOF' | tee /etc/ha.d/load || $Error
+#!/bin/bash
+crm configure load update $1
+EOF
+chmod 755 /etc/ha.d/load || $Error
+
+cat << 'EOF' | tee /etc/ha.d/drbd_slave_recover || $Error
+#!/bin/bash
+if grep -q ds:UpToDate/UpToDate /proc/drbd; then
+  echo There is no problem.
+  exit 0
+fi
+. /etc/ha.d/_param_cluster || exit 1
+if ip addr show | grep -q " $HA_VIP/26"; then
+  echo This node is active.
+  exit 1
+fi
+if ! rpcinfo $HA_VIP; then
+  echo There is no active server.
+  exit 1
+fi
+/etc/init.d/heartbeat stop || :
+echo yes | drbdadm wipe-md r0 || exit 1
+echo yes | drbdadm create-md r0 || exit 1
+/etc/init.d/heartbeat start
+echo
+echo The processing is continued even if you stop this program ($0).
+echo
+date
+while ! grep -q sync /proc/drbd; do sleep 5;date; done
+while grep sync /proc/drbd; do sleep 10;date; done
+EOF
+chmod 755 /etc/ha.d/drbd_slave_recover || $Error
+
+cat << EOF | tee /etc/ha.d/_param_cluster || $Error
+. /etc/ha.d/param_cluster
 CENTOS_VER=$CENTOS_VER
 EOF
-cat << 'EOF' | tee -a /etc/ha.d/param_all_nfsserver_for_backup || $Error
+cat << 'EOF' | tee -a /etc/ha.d/_param_cluster || $Error
 HA_NETWORK_123=$(echo $HA_VIP | awk -F. '{print $1 "." $2 "." $3}')
 if [ "$HA_NETWORK_123" != "$(echo $HA1_IP | awk -F. '{print $1 "." $2 "." $3}')" ]; then
   echo "Error: Network Configuration"
@@ -1270,13 +1323,15 @@ HA_DEV1=xvdc
 if [ ! -d /proc/xen/ ]; then
   lsmod | grep -q ^aacraid && HA_DEV1=sdc || HA_DEV1=sda
 fi
-NFS_EXPORT_POINT=/backup
 :
 EOF
 
 cat << 'EOF_NFSSERVER_FOR_BACKUP' | tee /etc/ha.d/mk_nfsserver_for_backup || $Error
 #!/bin/bash
 
+NFS_EXPORT_POINT=/backup
+date
+echo
 if grep UpToDate /proc/drbd 2> /dev/null; then
   echo "This server is already setuped."
   exit 1
@@ -1314,7 +1369,7 @@ elif [ "$1" ]; then
   fi
   sudo tar xzvf /root/ha_param.tgz -C / || exit 1
   sudo /etc/init.d/sshd restart || exit 1
-  . /etc/ha.d/param_all_nfsserver_for_backup
+  . /etc/ha.d/_param_cluster
   if [ "$(uname -n)" != "$HA1_NAME" -a "$(uname -n)" != "$HA2_NAME" ];then
     echo "Please check hostname."
     exit 1
@@ -1335,69 +1390,69 @@ else
     echo; echo "You have no authority."
     exit 1
   fi
-  . /etc/ha.d/param_all_nfsserver_for_backup
+  . /etc/ha.d/_param_cluster
   if [ $? -ne 0 ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA1_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA2_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA1_IP" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA2_IP" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA_VIP" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA_GATEWAY_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA1_HB_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA2_HB_NAME" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA1_HB_IP" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$HA2_HB_IP" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$DRBD_SIZE" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$DRBD_PASSWORD" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
-  if [ ! "$NFS_CLIENTS" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  if [ ! "$VIP_CLIENTS" ]; then
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ ! "$NFS_EXPORT_POINT" ]; then
-    echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+    echo; echo "You have not edited /etc/ha.d/param_cluster yet."
     exit 1
   fi
   if [ "$(uname -n)" != "$HA1_NAME" ];then
@@ -1417,13 +1472,12 @@ if [ "$(id)" != "$(id root)" ]; then
   echo; echo "You have no authority."
   exit 1
 fi
-. /etc/ha.d/param_all_nfsserver_for_backup
+. /etc/ha.d/_param_cluster
 if [ $? -ne 0 ]; then
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup yet."
+  echo; echo "You have not edited /etc/ha.d/param_cluster yet."
   exit 1
 fi
 
-date
 set -x
 if ! lvdisplay | grep /dev/vg0/drbd0; then
   lvcreate --name drbd0 --size $DRBD_SIZE vg0 || exit 1
@@ -1470,19 +1524,19 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -i eth3  -j DROP
 -A INPUT -i bond1 -j DROP
 ########## Private VLAN ##########
--A INPUT -s $HA1_IP,$HA2_IP -j ACCEPT
--A INPUT -p tcp --dport 2049  -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 2049  -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 111   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 111   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 662   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 662   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 875   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 875   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 892   -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 892   -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p tcp --dport 32803 -m tcp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
--A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $NFS_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -s $HA1_IP,$HA2_IP,$HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 2049  -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 2049  -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 111   -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 111   -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 662   -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 662   -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 875   -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 875   -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 892   -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 892   -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p tcp --dport 32803 -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
+-A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
@@ -1622,10 +1676,10 @@ autojoin none
 respawn root /usr/lib64/heartbeat/ifcheckd
 EOF
 
-NFS_CLIENTS=$(echo $NFS_CLIENTS | tr , " ")
+VIP_CLIENTS=$(echo $VIP_CLIENTS | tr , " ")
 P_VIP=p_vip_$(echo $HA_VIP | tr . _)
 
-cat << EOF | tee /etc/ha.d/nfsserver_for_backup.txt
+cat << EOF | tee /etc/ha.d/crm_nfsserver_for_backup
 primitive p_drbd_r0 ocf:linbit:drbd \\
   params drbd_resource="r0" \\
   op start   interval="0" timeout="240s" \\
@@ -1681,13 +1735,13 @@ primitive p_nfsserver lsb:nfs \\
 primitive p_exp_root ocf:heartbeat:exportfs \\
   params fsid="0" directory="/export" \\
   options="rw,sync,crossmnt" \\
-  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  clientspec="$VIP_CLIENTS" wait_for_leasetime_on_stop="false" \\
   op start interval="0" timeout="240s" \\
   op stop  interval="0" timeout="100s"
 primitive p_exp_backup ocf:heartbeat:exportfs \\
   params fsid="1" directory="/export$NFS_EXPORT_POINT" \\
   options="rw,sync,mountpoint" \\
-  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  clientspec="$VIP_CLIENTS" wait_for_leasetime_on_stop="false" \\
   op start   interval="0"   timeout="240s" \\
   op monitor interval="30s" \\
   op stop    interval="0"   timeout="100s" \\
@@ -1695,7 +1749,7 @@ primitive p_exp_backup ocf:heartbeat:exportfs \\
 primitive p_exp_nfs3 ocf:heartbeat:exportfs \\
   params fsid="2" directory="$NFS_EXPORT_POINT" \\
   options="rw,sync" \\
-  clientspec="$NFS_CLIENTS" wait_for_leasetime_on_stop="false" \\
+  clientspec="$VIP_CLIENTS" wait_for_leasetime_on_stop="false" \\
   op start   interval="0"   timeout="240s" \\
   op monitor interval="30s" \\
   op stop    interval="0"   timeout="100s" \\
@@ -1761,7 +1815,7 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
   /etc/init.d/heartbeat start || exit 1
   while ! crm_mon -1rfA | grep "Online: \[ $(uname -n) \]"; do sleep 5; done
-  crm configure load update /etc/ha.d/nfsserver_for_backup.txt || exit 1
+  crm configure load update /etc/ha.d/crm_nfsserver_for_backup || exit 1
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
   crm_mon -1frA
   mkdir -p $NFS_EXPORT_POINT/ks || exit 1
@@ -1799,7 +1853,7 @@ done
 mkdir /mnt/sysimage
 mount /dev/${DEV}2 /mnt/sysimage
 mount /dev/${DEV}1 /mnt/sysimage/boot
-[ -e /proc/xen ] && sed -i -e '/^default=/d' -e 's/^##rescue##default=/default=/' -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=10.0.80.11%" /mnt/sysimage/boot/grub/grub.conf
+[ -d /proc/xen/ ] && sed -i -e '/^default=/d' -e 's/^##rescue##default=/default=/' -e '/vmlinuz / s%^.*$%\tkernel /vmlinuz rescue repo=http://mirrors.service.networklayer.com/centos/6/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip='"$(ifconfig eth0 | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=10.0.80.11%" /mnt/sysimage/boot/grub/grub.conf
 mkdir /backup
 mount -t nfs $(echo $ks | awk -F: '{print $2}'):/backup /backup
 if [ ! -d /backup/system ]; then
@@ -1817,15 +1871,15 @@ umount /mnt/sysimage/boot
 tar czf /backup/system/$HOSTNAME/$DATETIME/root.tgz . > /dev/null 2>&1
 ## other partition ##
 mount /dev/${DEV}1 /mnt/sysimage/boot
-[ -e /proc/xen ] && sed -i -e "s/backup=[0-9]* /backup=$DATETIME /" /boot/grub/grub.conf
-[ -e /proc/xen ] && reboot
+[ -d /proc/xen/ ] && sed -i -e "s/backup=[0-9]* /backup=$DATETIME /" /boot/grub/grub.conf
+[ -d /proc/xen/ ] && reboot
 umount /backup
 mount -t proc /proc /mnt/sysimage/proc
 chroot /mnt/sysimage /usr/local/sbin/reboot_quick noreboot backup=$DATETIME
 mount -o ro,remount /dev/${DEV}2 /mnt/sysimage
 mount -o ro,remount /dev/${DEV}1 /mnt/sysimage/boot
 chroot /mnt/sysimage /sbin/kexec -e
-[ -e /proc/xen ] || /usr/bin/chvt 1
+[ -d /proc/xen/ ] || /usr/bin/chvt 1
 reboot
 %end
 %post
@@ -1842,7 +1896,7 @@ EOF
     mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys || exit 1
   fi
   sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config || exit 1
-  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_nfsserver_for_backup root/.ssh/id_rsa root/.ssh/authorized_keys || exit 1
+  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_cluster etc/ha.d/_param_cluster root/.ssh/id_rsa root/.ssh/authorized_keys || exit 1
   /etc/init.d/sshd restart || exit 1
   echo; echo "The setup of the master server was completed. Please set up the slave server."
 elif [ "$INIT_MODE" = "SLAVE" ]; then
@@ -1864,11 +1918,13 @@ elif [ "$INIT_MODE" = "SLAVE" ]; then
   while grep sync /proc/drbd; do date;sleep 60; done
   cat /proc/drbd
   crm_mon -1frA
+  /etc/ha.d/record
   echo; echo "The setup of the slave server was completed."
 else
-  echo; echo "You have not edited /etc/ha.d/param_nfsserver_for_backup correctly."
+  echo; echo "You have not edited /etc/ha.d/param_cluster correctly."
   exit 1
 fi
+date
 EOF_NFSSERVER_FOR_BACKUP
 chmod 755 /etc/ha.d/mk_nfsserver_for_backup || $Error
 
