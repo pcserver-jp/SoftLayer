@@ -17,6 +17,7 @@ MAIL_PW=password
 MAIL_HELLO=example.com
 MAIL_FROM=softlayer@example.com
 
+mkdir /etc/ha.d/
 cat << EOF | tee /etc/ha.d/param_cluster
 HA1_IP=
 HA2_IP=
