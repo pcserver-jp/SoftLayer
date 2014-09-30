@@ -2,7 +2,7 @@
 
 #https://raw.githubusercontent.com/pcserver-jp/SoftLayer/master/co6.sh
 
-MY_ROOT_PW=
+MY_ROOT_PW=$(dd if=/dev/urandom bs=1 count=48 2> /dev/null | base64)
 MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_INIT_PW=sl-admin
 MY_SL_ADMIN_ID=65501
@@ -17,7 +17,7 @@ MAIL_PW=password
 MAIL_HELLO=example.com
 MAIL_FROM=softlayer@example.com
 
-mkdir /etc/ha.d/
+mkdir -p /etc/ha.d/
 cat << EOF | tee /etc/ha.d/param_cluster
 HA1_IP=
 HA2_IP=
@@ -67,6 +67,12 @@ fi
 exec >> /root/post_install.log || $Error
 exec 2>&1 || $Error
 set -x || $Error
+chmod 600 /root/post_install.log || $Error
+
+mkdir -p /root/.pw || $Error
+chmod 700 /root/.pw || $Error
+echo -n $MY_ROOT_PW | tee /root/.pw/root > /dev/null || $Error
+chmod 400 /root/.pw/root || $Error
 
 #http://knowledgelayer.softlayer.com/faq/what-ip-ranges-do-i-allow-through-firewall
 if [ -d /proc/xen/ ]; then
@@ -874,7 +880,7 @@ cat stone.key | tee -a /etc/pki/tls/certs/stone.pem > /dev/null || $Error
 chmod 400 /etc/pki/tls/certs/stone.pem || $Error
 rm -f stone.key || $Error
 groupadd -g 17 stoned || $Error
-useradd -g stoned -u 17 -c "Stone Daemon" -N -r -M -d / -s /sbin/nologin stoned || $Error
+useradd -u 17 -g stoned -c "Stone Daemon" -d / -s /sbin/nologin -r stoned || $Error
 mkdir -p /var/chroot/stoned || $Error
 cat << 'EOF' | tee /etc/stoned.conf || $Error
 localhost:22 443/ssl
@@ -960,21 +966,42 @@ exit $RETVAL
 EOF
 chmod 755 /etc/init.d/stoned || $Error
 
+sed -i -e 's%^saslauth:.*$%saslauth:x:76:76:"Saslauthd user":/var/empty/saslauth:/sbin/nologin%' /etc/passwd || $Error
+groupadd -g 65502 haclient || $Error
+useradd -u 65502 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
+groupadd -g 65503 munin || $Error
+useradd -u 65503 -g munin -c "Munin user" -d /var/lib/munin -s /sbin/nologin -r munin || $Error
+groupadd -g 65504 vnstat || $Error
+useradd -u 65504 -g vnstat -c "vnStat user" -d /var/lib/vnstat -s /sbin/nologin -r vnstat || $Error
+groupadd -g 65505 ntop || $Error
+useradd -u 65505 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
+
 yum -y install \
+ cachefilesd \
  dialog \
  dstat \
+ gdb \
  iotop \
  iptstate \
+ ipvsadm \
+ keepalived \
  latencytop-tui \
  ltrace \
+ mod_ssl \
  nfs-utils \
+ oprofile \
  perl-Authen-SASL \
  perl-MIME-tools \
  powertop \
  python-setuptools \
  screen \
+ systemtap-initscript \
+ systemtap-sdt-devel \
+ systemtap-server \
  telnet \
- watchdog || $Error
+ watchdog \
+ xfsdump \
+ xfsprogs-qa-devel || $Error
 
 yum -y --enablerepo=epel install \
  apachetop \
@@ -1236,7 +1263,7 @@ chmod 755 /etc/ha.d/diff || $Error
 cat << 'EOF' | tee /etc/ha.d/destroy || $Error
 #!/bin/bash
 /etc/init.d/heartbeat stop
-rm -f $(sudo find /var/lib/pengine/) $(sudo find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
+rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
 > /var/log/ha-log
 EOF
 chmod 755 /etc/ha.d/destroy || $Error
@@ -1570,6 +1597,9 @@ net.ipv4.tcp_window_scaling = 1
 net.ipv4.tcp_timestamps = 0
 net.ipv4.tcp_sack = 0
 net.ipv4.tcp_no_metrics_save = 1
+kernel.panic = 0
+kernel.panic_on_oops = 1
+vm.swappiness = 0
 EOF
   sysctl -p
 fi
@@ -2054,10 +2084,6 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
 UseDNS no
 EOF
 
-if [ "$MY_ROOT_PW" ]; then
-  echo $MY_ROOT_PW | passwd --stdin root || $Error
-else
-  dd if=/dev/urandom bs=1 count=50 2> /dev/null | base64 | passwd --stdin root || $Error
-fi
+echo $MY_ROOT_PW | passwd --stdin root || $Error
 
 /usr/local/sbin/reboot_quick || $Error
