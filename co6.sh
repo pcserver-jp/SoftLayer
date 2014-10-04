@@ -740,6 +740,7 @@ name=CentOS-$releasever - Extras
 baseurl=http://mirrors.service.networklayer.com/centos/$releasever/extras/$basearch/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [centosplus]
 name=CentOS-$releasever - Plus
@@ -758,17 +759,6 @@ EOF
   rm -rf /etc/yum.repos.d/CentOS-Base.repo.orig* || $Error
 fi
 
-cat << 'EOF' | tee /etc/yum.repos.d/epel.repo || $Error
-[epel]
-name=Extra Packages for Enterprise Linux 6 - $basearch
-mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=$basearch
-failovermethod=priority
-enabled=0
-gpgcheck=1
-gpgkey=http://ftp.riken.jp/Linux/fedora/epel/RPM-GPG-KEY-EPEL-6
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
-EOF
-
 cat << 'EOF' | tee /etc/yum.repos.d/elrepo.repo || $Error
 [elrepo]
 name=ELRepo.org Community Enterprise Linux Repository - el6
@@ -782,6 +772,47 @@ enabled=0
 gpgcheck=1
 gpgkey=http://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 protect=0
+exclude=elrepo-release
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/epel.repo || $Error
+[epel]
+name=Extra Packages for Enterprise Linux 6 - $basearch
+mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgcheck=1
+gpgkey=http://ftp.riken.jp/Linux/fedora/epel/RPM-GPG-KEY-EPEL-6
+exclude=epel-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* armadillo* python-argcomplete python-argh v8 v8-devel
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/remi.repo
+[remi]
+name=Les RPM de remi pour Enterprise Linux 6 - $basearch
+#baseurl=http://rpms.famillecollet.com/enterprise/6/remi/$basearch/
+mirrorlist=http://rpms.famillecollet.com/enterprise/6/remi/mirror
+enabled=0
+gpgcheck=1
+gpgkey=http://rpms.famillecollet.com/RPM-GPG-KEY-remi
+exclude=remi-release
+
+[remi-php55]
+name=Les RPM de remi de PHP 5.5 pour Enterprise Linux 6 - $basearch
+#baseurl=http://rpms.famillecollet.com/enterprise/6/php55/$basearch/
+mirrorlist=http://rpms.famillecollet.com/enterprise/6/php55/mirror
+# WARNING: If you enable this repository, you must also enable "remi"
+enabled=0
+gpgcheck=1
+gpgkey=http://rpms.famillecollet.com/RPM-GPG-KEY-remi
+
+[remi-php56]
+name=Les RPM de remi de PHP 5.6 pour Enterprise Linux 6 - $basearch
+#baseurl=http://rpms.famillecollet.com/enterprise/6/php56/$basearch/
+mirrorlist=http://rpms.famillecollet.com/enterprise/6/php56/mirror
+# WARNING: If you enable this repository, you must also enable "remi"
+enabled=0
+gpgcheck=1
+gpgkey=http://rpms.famillecollet.com/RPM-GPG-KEY-remi
 EOF
 
 cat << 'EOF' | tee /etc/yum.repos.d/mysql56.repo || $Error
@@ -800,14 +831,7 @@ baseurl=http://yum.postgresql.org/9.3/redhat/rhel-$releasever-$basearch
 enabled=0
 gpgcheck=1
 gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
-
-[pgdg93-source]
-name=PostgreSQL 9.3 $releasever - $basearch - Source
-failovermethod=priority
-baseurl=http://yum.postgresql.org/srpms/9.3/redhat/rhel-$releasever-$basearch
-enabled=0
-gpgcheck=1
-gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
+exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 compat-libevent14 compat-libevent14-devel
 EOF
 
 rpm -qa | LANG=C sort || $Error
@@ -1018,7 +1042,8 @@ yum -y --enablerepo=epel install \
  vnstat \
  || $Error
 
-yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
+#yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
+yum -y --enablerepo=epel,remi install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
 yum -y localinstall http://www.percona.com/downloads/XtraBackup/LATEST/binary/redhat/6/x86_64/percona-xtrabackup-2.2.4-5004.el6.x86_64.rpm
 
