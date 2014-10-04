@@ -258,7 +258,7 @@ if [ ! -e /rescue/public_primary_gateway ]; then
   echo $GATEWAY1 | tee /rescue/public_primary_gateway || $Error
 fi
 cat /etc/sysconfig/network-scripts/ifcfg-lo
-for in eth0 eth1 eth2 eth3 bond0 bond1
+for i in eth0 eth1 eth2 eth3 bond0 bond1
 do
   if [ -e /etc/sysconfig/network-scripts/ifcfg-$i  ]; then
     cat /etc/sysconfig/network-scripts/ifcfg-$i || $Error
