@@ -831,7 +831,7 @@ baseurl=http://yum.postgresql.org/9.3/redhat/rhel-$releasever-$basearch
 enabled=0
 gpgcheck=1
 gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
-exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 compat-libevent14 compat-libevent14-devel
+exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 compat-libevent14-devel libevent-devel
 EOF
 
 rpm -qa | LANG=C sort || $Error
