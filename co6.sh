@@ -7,7 +7,12 @@ MY_SL_ADMIN=sl-admin
 MY_SL_ADMIN_INIT_PW=sl-admin
 MY_SL_ADMIN_ID=65501
 WHEEL_SUDO_NOPASSWD=yes
+MY_NTOP_PW=$(dd if=/dev/urandom bs=1 count=6 2> /dev/null | base64)
 CENTOS_VER=6.5
+
+DEV_DOMAIN=dev.example.com
+STG_DOMAIN=stg.example.com
+PRD_DOMAIN=example.com
 
 SL_ACCOUNT=SL999999
 SL_API_KEY=abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
@@ -73,6 +78,8 @@ mkdir -p /root/.pw || $Error
 chmod 700 /root/.pw || $Error
 echo -n $MY_ROOT_PW | tee /root/.pw/root > /dev/null || $Error
 chmod 400 /root/.pw/root || $Error
+echo -n $MY_NTOP_PW | tee /root/.pw/ntop > /dev/null || $Error
+chmod 400 /root/.pw/ntop || $Error
 
 #http://knowledgelayer.softlayer.com/faq/what-ip-ranges-do-i-allow-through-firewall
 if [ -d /proc/xen/ ]; then
@@ -119,8 +126,9 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -i eth3  -j DROP
 -A INPUT -i bond1 -j DROP
 ########## Private VLAN ##########
--A INPUT -p tcp  --dport 22  -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
--A INPUT -p icmp                                         -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p tcp  --dport 22   -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p tcp  --dport 3001 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p icmp                                          -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
@@ -207,7 +215,35 @@ if ! id $MY_SL_ADMIN; then
   chage -d 0 $MY_SL_ADMIN || $Error
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
   chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
+  cat << EOF | tee -a /home/$MY_SL_ADMIN/.bash_profile
+DEV_DOMAIN=$DEV_DOMAIN
+STG_DOMAIN=$STG_DOMAIN
+PRD_DOMAIN=$PRD_DOMAIN
+EOF
+  cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile
+if [ "$PS1" ]; then
+  case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
+    "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
+    "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
+    * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
+  esac
 fi
+EOF
+fi
+cat << EOF | tee -a /root/.bash_profile
+DEV_DOMAIN=$DEV_DOMAIN
+STG_DOMAIN=$STG_DOMAIN
+PRD_DOMAIN=$PRD_DOMAIN
+EOF
+cat << 'EOF' | tee -a /root/.bash_profile
+if [ "$PS1" ]; then
+  case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
+    "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
+    "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
+    * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
+  esac
+fi
+EOF
 
 ifconfig || $Error
 route -n || $Error
@@ -726,14 +762,14 @@ name=CentOS-6 - Base
 baseurl=http://mirrors.service.networklayer.com/centos/6/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [updates]
 name=CentOS-6 - Updates
 baseurl=http://mirrors.service.networklayer.com/centos/6/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [extras]
 name=CentOS-6 - Extras
@@ -772,7 +808,7 @@ baseurl=http://vault.centos.org/6.0/os/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.0-updates]
 name=CentOS-6.0 - Updates
@@ -780,7 +816,7 @@ baseurl=http://vault.centos.org/6.0/updates/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.0-extras]
 name=CentOS-6.0 - Extras
@@ -788,6 +824,7 @@ baseurl=http://vault.centos.org/6.0/extras/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [C6.0-contrib]
 name=CentOS-6.0 - Contrib
@@ -810,7 +847,7 @@ baseurl=http://vault.centos.org/6.1/os/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.1-updates]
 name=CentOS-6.1 - Updates
@@ -818,7 +855,7 @@ baseurl=http://vault.centos.org/6.1/updates/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.1-extras]
 name=CentOS-6.1 - Extras
@@ -826,6 +863,7 @@ baseurl=http://vault.centos.org/6.1/extras/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [C6.1-contrib]
 name=CentOS-6.1 - Contrib
@@ -848,7 +886,7 @@ baseurl=http://vault.centos.org/6.2/os/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.2-updates]
 name=CentOS-6.2 - Updates
@@ -856,7 +894,7 @@ baseurl=http://vault.centos.org/6.2/updates/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.2-extras]
 name=CentOS-6.2 - Extras
@@ -864,6 +902,7 @@ baseurl=http://vault.centos.org/6.2/extras/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [C6.2-contrib]
 name=CentOS-6.2 - Contrib
@@ -886,7 +925,7 @@ baseurl=http://vault.centos.org/6.3/os/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.3-updates]
 name=CentOS-6.3 - Updates
@@ -894,7 +933,7 @@ baseurl=http://vault.centos.org/6.3/updates/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.3-extras]
 name=CentOS-6.3 - Extras
@@ -902,6 +941,7 @@ baseurl=http://vault.centos.org/6.3/extras/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [C6.3-contrib]
 name=CentOS-6.3 - Contrib
@@ -924,7 +964,7 @@ baseurl=http://vault.centos.org/6.4/os/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.4-updates]
 name=CentOS-6.4 - Updates
@@ -932,7 +972,7 @@ baseurl=http://vault.centos.org/6.4/updates/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [C6.4-extras]
 name=CentOS-6.4 - Extras
@@ -940,6 +980,7 @@ baseurl=http://vault.centos.org/6.4/extras/$basearch/
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 enabled=0
+exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [C6.4-contrib]
 name=CentOS-6.4 - Contrib
@@ -976,6 +1017,7 @@ EOF
 cat << 'EOF' | tee /etc/yum.repos.d/epel.repo || $Error
 [epel]
 name=Extra Packages for Enterprise Linux 6 - x86_64
+#baseurl=http://ftp.jaist.ac.jp/pub/Linux/Fedora/epel/6/x86_64/
 mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=x86_64
 failovermethod=priority
 enabled=0
@@ -1029,7 +1071,18 @@ baseurl=http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64
 enabled=0
 gpgcheck=1
 gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
-exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 compat-libevent14-devel libevent-devel
+exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 libevent-devel
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/rpmforge.repo
+[rpmforge]
+name = RHEL $releasever - RPMforge.net - dag
+baseurl = http://apt.sw.be/redhat/el6/en/$basearch/rpmforge
+mirrorlist = http://mirrorlist.repoforge.org/el6/mirrors-rpmforge
+enabled = 0
+gpgkey = http://apt.sw.be/RPM-GPG-KEY.dag.txt
+gpgcheck = 1
+includepkgs=lv
 EOF
 
 rpm -qa | LANG=C sort || $Error
@@ -1190,7 +1243,10 @@ useradd -u 65410 -g logcheck -c "Logcheck user" -d /var/lib/logcheck -s /sbin/no
 groupadd -g 65411 ntop || $Error
 useradd -u 65411 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
 
-yum -y --enablerepo=epel install \
+yum -y --enablerepo=epel,pgdg93 install \
+ libevent \
+ compat-libevent14 \
+ compat-libevent14-devel \
  cachefilesd \
  dialog \
  dstat \
@@ -1258,7 +1314,6 @@ yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 # barman \
 # boxinfo \
 # check_postgres \
-# compat-libevent14 \
 # cstore_fdw_93 \
 # gdal \
 # gdal-devel \
@@ -1274,7 +1329,6 @@ yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 # geos-python \
 # gpsbabel \
 # ip4r93 \
-# libevent \
 # libgeotiff \
 # libgeotiff-devel \
 # libmemcached \
@@ -1359,6 +1413,8 @@ yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 #includepkgs=perl-Mojolicious
 #EOF
 #yum -y install --enablerepo=epel,pgdg93,home_viliampucik_rhel powa_93 powa_93-ui || $Error
+
+yum -y --enablerepo=rpmforge install lv
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
@@ -1451,7 +1507,8 @@ VERBOSE=no
 EOF
 
 vnstat --testkernel || $Error
-for i in $(vnstat --iflist | sed -n 's/^Available interfaces: //p')
+NICs="$(vnstat --iflist | sed -n 's/^Available interfaces: //p')"
+for i in $NICs
 do
   vnstat -u -i $i || $Error
 done
@@ -1459,6 +1516,47 @@ if [ -r /var/lib/vnstat/bond0 ]; then
   cat /etc/vnstat.conf || $Error
   sed -i -e 's/^Interface .*$/Interface "bond0"/' /etc/vnstat.conf || $Error
 fi
+
+NICs=$(echo $NICs | tr ' ' ,)
+
+cat /etc/ntop.conf || $Error
+cat << EOF | tee /etc/ntop.conf || $Error
+--user=ntop
+#--use-syslog=local1
+--access-log-file=/var/log/ntop.access
+#--pcap-log=ntop.pcap
+--db-file-path=/var/lib/ntop
+--trace-level=3
+--http-server=0
+--https-server=0.0.0.0:3001
+--local-subnets=10.0.0.0/8
+--skip-version-check=yes
+--interface=$NICs
+EOF
+sed -i -e 's/^pidfile=.*$/pidfile=/var/lib/ntop/ntop.pid/' /etc/init.d/ntop || $Error
+#sed -i -e 's/config --daemon/config --use-syslog=local1 --daemon/' /etc/init.d/ntop || $Error
+ntop --set-admin-password=$MY_NTOP_PW || $Error
+pkill ntop || $Error
+
+#if ! grep /var/log/ntop /etc/rsyslog.conf; then
+#  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.*                                                /var/log/ntop' /etc/rsyslog.conf || $Error
+#  /etc/init.d/rsyslog restart || $Error
+#fi
+
+cat << 'EOF' | tee /etc/logrotate.d/ntop
+/var/log/ntop.access {
+  daily
+  rotate 366
+  compress
+  ifempty
+  create 0640 root wheel
+  missingok
+  postrotate
+    /etc/init.d/ntop reload >/dev/null 2>&1
+  endscript
+}
+EOF
+
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
@@ -1899,6 +1997,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p tcp --dport 32803 -m tcp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
+-A INPUT -p tcp --dport 3001  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
@@ -1995,7 +2094,7 @@ resource r0 {
 EOF
 
 if ! grep /var/log/ha-log /etc/rsyslog.conf; then
-  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.info                                             /var/log/ha-log' /etc/rsyslog.conf
+  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local2.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local2.info                                             /var/log/ha-log' /etc/rsyslog.conf
   /etc/init.d/rsyslog restart
 fi
 
@@ -2025,7 +2124,7 @@ chmod 600 /etc/ha.d/authkeys
 cat << EOF | tee /etc/ha.d/ha.cf
 crm yes
 debug 0
-logfacility local1
+logfacility local2
 keepalive 2
 warntime 7
 deadtime 10
@@ -2363,7 +2462,9 @@ do
     crond        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     iptables     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     irqbalance   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    munin-node   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     network      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    ntop         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     postfix      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     psacct       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     rsyslog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
