@@ -18,7 +18,7 @@ MAIL_HELLO=example.com
 MAIL_FROM=softlayer@example.com
 
 mkdir -p /etc/ha.d/
-cat << EOF | tee /etc/ha.d/param_cluster
+cat << EOF | tee /etc/ha.d/param_cluster > /dev/null
 HA1_IP=
 HA2_IP=
 HA_VIP=
@@ -722,51 +722,249 @@ cat /etc/yum.repos.d/CentOS-Base.repo || $Error
 if grep -q ^CentOS /etc/system-release; then
   cat << 'EOF' | tee /etc/yum.repos.d/CentOS-Base.repo || $Error
 [base]
-name=CentOS-$releasever - Base
-baseurl=http://mirrors.service.networklayer.com/centos/$releasever/os/$basearch/
+name=CentOS-6 - Base
+baseurl=http://mirrors.service.networklayer.com/centos/6/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [updates]
-name=CentOS-$releasever - Updates
-baseurl=http://mirrors.service.networklayer.com/centos/$releasever/updates/$basearch/
+name=CentOS-6 - Updates
+baseurl=http://mirrors.service.networklayer.com/centos/6/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
-exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd*
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
 [extras]
-name=CentOS-$releasever - Extras
-baseurl=http://mirrors.service.networklayer.com/centos/$releasever/extras/$basearch/
+name=CentOS-6 - Extras
+baseurl=http://mirrors.service.networklayer.com/centos/6/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
 [centosplus]
-name=CentOS-$releasever - Plus
-baseurl=http://mirrors.service.networklayer.com/centos/$releasever/centosplus/$basearch/
+name=CentOS-6 - Plus
+baseurl=http://mirrors.service.networklayer.com/centos/6/centosplus/x86_64/
 gpgcheck=1
 enabled=0
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 
 [contrib]
-name=CentOS-$releasever - Contrib
-baseurl=http://mirrors.service.networklayer.com/centos/$releasever/contrib/$basearch/
+name=CentOS-6 - Contrib
+baseurl=http://mirrors.service.networklayer.com/centos/6/contrib/x86_64/
 gpgcheck=1
 enabled=0
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 EOF
   rm -rf /etc/yum.repos.d/CentOS-Base.repo.orig* || $Error
+  cat /etc/yum.repos.d/CentOS-Vault.repo || $Error
+  cat << 'EOF' | tee /etc/yum.repos.d/CentOS-Vault.repo || $Error
+# CentOS-Vault.repo
+#
+# CentOS Vault holds packages from previous releases within the same CentOS Version
+# these are packages obsoleted by the current release and should usually not
+# be used in production
+#-----------------
+
+[C6.0-base]
+name=CentOS-6.0 - Base
+baseurl=http://vault.centos.org/6.0/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.0-updates]
+name=CentOS-6.0 - Updates
+baseurl=http://vault.centos.org/6.0/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.0-extras]
+name=CentOS-6.0 - Extras
+baseurl=http://vault.centos.org/6.0/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.0-contrib]
+name=CentOS-6.0 - Contrib
+baseurl=http://vault.centos.org/6.0/contrib/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.0-centosplus]
+name=CentOS-6.0 - CentOSPlus
+baseurl=http://vault.centos.org/6.0/centosplus/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+#-----------------
+
+[C6.1-base]
+name=CentOS-6.1 - Base
+baseurl=http://vault.centos.org/6.1/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.1-updates]
+name=CentOS-6.1 - Updates
+baseurl=http://vault.centos.org/6.1/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.1-extras]
+name=CentOS-6.1 - Extras
+baseurl=http://vault.centos.org/6.1/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.1-contrib]
+name=CentOS-6.1 - Contrib
+baseurl=http://vault.centos.org/6.1/contrib/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.1-centosplus]
+name=CentOS-6.1 - CentOSPlus
+baseurl=http://vault.centos.org/6.1/centosplus/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+#-----------------
+
+[C6.2-base]
+name=CentOS-6.2 - Base
+baseurl=http://vault.centos.org/6.2/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.2-updates]
+name=CentOS-6.2 - Updates
+baseurl=http://vault.centos.org/6.2/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.2-extras]
+name=CentOS-6.2 - Extras
+baseurl=http://vault.centos.org/6.2/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.2-contrib]
+name=CentOS-6.2 - Contrib
+baseurl=http://vault.centos.org/6.2/contrib/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.2-centosplus]
+name=CentOS-6.2 - CentOSPlus
+baseurl=http://vault.centos.org/6.2/centosplus/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+#-----------------
+
+[C6.3-base]
+name=CentOS-6.3 - Base
+baseurl=http://vault.centos.org/6.3/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.3-updates]
+name=CentOS-6.3 - Updates
+baseurl=http://vault.centos.org/6.3/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.3-extras]
+name=CentOS-6.3 - Extras
+baseurl=http://vault.centos.org/6.3/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.3-contrib]
+name=CentOS-6.3 - Contrib
+baseurl=http://vault.centos.org/6.3/contrib/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.3-centosplus]
+name=CentOS-6.3 - CentOSPlus
+baseurl=http://vault.centos.org/6.3/centosplus/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+#-----------------
+
+[C6.4-base]
+name=CentOS-6.4 - Base
+baseurl=http://vault.centos.org/6.4/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.4-updates]
+name=CentOS-6.4 - Updates
+baseurl=http://vault.centos.org/6.4/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.4-extras]
+name=CentOS-6.4 - Extras
+baseurl=http://vault.centos.org/6.4/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.4-contrib]
+name=CentOS-6.4 - Contrib
+baseurl=http://vault.centos.org/6.4/contrib/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.4-centosplus]
+name=CentOS-6.4 - CentOSPlus
+baseurl=http://vault.centos.org/6.4/centosplus/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=0
+EOF
 fi
 
 cat << 'EOF' | tee /etc/yum.repos.d/elrepo.repo || $Error
 [elrepo]
 name=ELRepo.org Community Enterprise Linux Repository - el6
-baseurl=http://elrepo.org/linux/elrepo/el6/$basearch/
-        http://mirrors.coreix.net/elrepo/elrepo/el6/$basearch/
-        http://jur-linux.org/download/elrepo/elrepo/el6/$basearch/
-        http://repos.lax-noc.com/elrepo/elrepo/el6/$basearch/
-        http://mirror.ventraip.net.au/elrepo/elrepo/el6/$basearch/
+baseurl=http://elrepo.org/linux/elrepo/el6/x86_64/
+        http://mirrors.coreix.net/elrepo/elrepo/el6/x86_64/
+        http://jur-linux.org/download/elrepo/elrepo/el6/x86_64/
+        http://repos.lax-noc.com/elrepo/elrepo/el6/x86_64/
+        http://mirror.ventraip.net.au/elrepo/elrepo/el6/x86_64/
 mirrorlist=http://mirrors.elrepo.org/mirrors-elrepo.el6
 enabled=0
 gpgcheck=1
@@ -777,8 +975,8 @@ EOF
 
 cat << 'EOF' | tee /etc/yum.repos.d/epel.repo || $Error
 [epel]
-name=Extra Packages for Enterprise Linux 6 - $basearch
-mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=$basearch
+name=Extra Packages for Enterprise Linux 6 - x86_64
+mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=x86_64
 failovermethod=priority
 enabled=0
 gpgcheck=1
@@ -788,17 +986,17 @@ EOF
 
 cat << 'EOF' | tee /etc/yum.repos.d/remi.repo
 [remi]
-name=Les RPM de remi pour Enterprise Linux 6 - $basearch
-#baseurl=http://rpms.famillecollet.com/enterprise/6/remi/$basearch/
+name=Les RPM de remi pour Enterprise Linux 6 - x86_64
+#baseurl=http://rpms.famillecollet.com/enterprise/6/remi/x86_64/
 mirrorlist=http://rpms.famillecollet.com/enterprise/6/remi/mirror
 enabled=0
 gpgcheck=1
 gpgkey=http://rpms.famillecollet.com/RPM-GPG-KEY-remi
-exclude=remi-release
+exclude=remi-release libevent*
 
 [remi-php55]
-name=Les RPM de remi de PHP 5.5 pour Enterprise Linux 6 - $basearch
-#baseurl=http://rpms.famillecollet.com/enterprise/6/php55/$basearch/
+name=Les RPM de remi de PHP 5.5 pour Enterprise Linux 6 - x86_64
+#baseurl=http://rpms.famillecollet.com/enterprise/6/php55/x86_64/
 mirrorlist=http://rpms.famillecollet.com/enterprise/6/php55/mirror
 # WARNING: If you enable this repository, you must also enable "remi"
 enabled=0
@@ -806,8 +1004,8 @@ gpgcheck=1
 gpgkey=http://rpms.famillecollet.com/RPM-GPG-KEY-remi
 
 [remi-php56]
-name=Les RPM de remi de PHP 5.6 pour Enterprise Linux 6 - $basearch
-#baseurl=http://rpms.famillecollet.com/enterprise/6/php56/$basearch/
+name=Les RPM de remi de PHP 5.6 pour Enterprise Linux 6 - x86_64
+#baseurl=http://rpms.famillecollet.com/enterprise/6/php56/x86_64/
 mirrorlist=http://rpms.famillecollet.com/enterprise/6/php56/mirror
 # WARNING: If you enable this repository, you must also enable "remi"
 enabled=0
@@ -817,8 +1015,8 @@ EOF
 
 cat << 'EOF' | tee /etc/yum.repos.d/mysql56.repo || $Error
 [MySQL56]
-name=MySQL 5.6 for Oracle Linux 6 ($basearch)
-baseurl=http://public-yum.oracle.com/repo/OracleLinux/OL6/MySQL56/$basearch/
+name=MySQL 5.6 for Oracle Linux 6 (x86_64)
+baseurl=http://public-yum.oracle.com/repo/OracleLinux/OL6/MySQL56/x86_64/
 gpgkey=http://public-yum.oracle.com/RPM-GPG-KEY-oracle-ol6
 gpgcheck=1
 enabled=0
@@ -826,8 +1024,8 @@ EOF
 
 cat << 'EOF' | tee /etc/yum.repos.d/pgdg-93-centos.repo
 [pgdg93]
-name=PostgreSQL 9.3 $releasever - $basearch
-baseurl=http://yum.postgresql.org/9.3/redhat/rhel-$releasever-$basearch
+name=PostgreSQL 9.3 rhel6 - x86_64
+baseurl=http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64
 enabled=0
 gpgcheck=1
 gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
@@ -1052,6 +1250,115 @@ yum -y localinstall http://www.percona.com/downloads/percona-toolkit/LATEST/RPM/
 #yum -y localinstall file:///C:/Users/dba/Documents/Downloads/percona-zabbix-templates-1.1.4-1.noarch.rpm
 
 yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
+
+#yum -y install --enablerepo=epel,pgdg93 \
+# CGAL \
+# armadillo \
+# armadillo-devel \
+# barman \
+# boxinfo \
+# check_postgres \
+# compat-libevent14 \
+# cstore_fdw_93 \
+# gdal \
+# gdal-devel \
+# gdal-doc \
+# gdal-java \
+# gdal-javadoc \
+# gdal-libs \
+# gdal-perl \
+# gdal-python \
+# gdal-ruby \
+# geos \
+# geos-devel \
+# geos-python \
+# gpsbabel \
+# ip4r93 \
+# libevent \
+# libgeotiff \
+# libgeotiff-devel \
+# libmemcached \
+# libmemcached-devel \
+# libpqxx \
+# libpqxx-devel \
+# mongo_fdw93 \
+# pagila93 \
+# pg_activity \
+# pg_catcheck93 \
+# pg_jobmon93 \
+# pg_partman93 \
+# pg_repack93 \
+# pg_top93 \
+# pgadmin3_93 \
+# pgadmin3_93-docs \
+# pgbadger \
+# pgbouncer \
+# pgcluu \
+# pgespresso93 \
+# pgfincore93 \
+# pgloader \
+# pgmemcache-93 \
+# pgpool-II-93 \
+# pgpool-II-93-devel \
+# pgrouting_93 \
+# pgtap93 \
+# pgxnclient \
+# plpgsql_check_93 \
+# plproxy93 \
+# plr93 \
+# plsh93 \
+# plv8_93 \
+# postgis2_93 \
+# postgis2_93-client \
+# postgis2_93-devel \
+# postgis2_93-docs \
+# postgis2_93-utils \
+# postgresql_autodoc \
+# proj \
+# proj-devel \
+# proj-epsg \
+# proj-nad \
+# python-argcomplete \
+# python-argh \
+# python-argparse \
+# python-psycopg2 \
+# python-psycopg2-doc \
+# python-psycopg2-test \
+# repmgr \
+# skytools-93 \
+# skytools-93-modules \
+# slony1-93 \
+# split_postgres_dump \
+# tail_n_mail \
+# v8 \
+# v8-devel \
+# || $Error
+
+#yum -y install --enablerepo=epel,pgdg93 \
+# emaj \
+# phpPgAdmin \
+# || $Error
+
+##Requires: perl(DBD::Oracle)
+#yum install --enablerepo=epel,pgdg93 ora2pg || $Error
+
+##Requires: perl-Pod-Usage
+##Broken: perl pachage has /usr/share/perl5/Pod/Usage.pm
+#yum install --enablerepo=epel,pgdg93 pg_comparator93 || $Error
+
+##Requires: perl-Mojolicious
+##ftp://ftp.pbone.net/mirror/ftp5.gwdg.de/pub/opensuse/repositories/home:/viliampucik:/rhel/RedHat_RHEL-6/home_viliampucik_rhel.repo
+#cat << 'EOF' | tee /etc/yum.repos.d/home_viliampucik_rhel.repo
+#[home_viliampucik_rhel]
+#name=home:viliampucik:rhel (RedHat_RHEL-6)
+#type=rpm-md
+#baseurl=http://download.opensuse.org/repositories/home:/viliampucik:/rhel/RedHat_RHEL-6/
+#gpgcheck=1
+#gpgkey=http://download.opensuse.org/repositories/home:/viliampucik:/rhel/RedHat_RHEL-6/repodata/repomd.xml.key
+#enabled=0
+#includepkgs=perl-Mojolicious
+#EOF
+#yum -y install --enablerepo=epel,pgdg93,home_viliampucik_rhel powa_93 powa_93-ui || $Error
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
