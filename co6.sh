@@ -203,36 +203,14 @@ if [ ! -e /rescue/public_primary_gateway ]; then
   echo $GATEWAY1 | tee /rescue/public_primary_gateway || $Error
 fi
 cat /etc/sysconfig/network-scripts/ifcfg-lo
-if [ -e /etc/sysconfig/network-scripts/ifcfg-eth0  ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-eth0 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-eth0 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-eth0 || $Error
-fi
-if [ -e /etc/sysconfig/network-scripts/ifcfg-eth1  ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-eth1 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-eth1 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-eth1 || $Error
-fi
-if [ -e /etc/sysconfig/network-scripts/ifcfg-eth2  ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-eth2 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-eth2 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-eth2 || $Error
-fi
-if [ -e /etc/sysconfig/network-scripts/ifcfg-eth3  ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-eth3 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-eth3 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-eth3 || $Error
-fi
-if [ -e /etc/sysconfig/network-scripts/ifcfg-bond0 ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-bond0 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-bond0 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-bond0 || $Error
-fi
-if [ -e /etc/sysconfig/network-scripts/ifcfg-bond1 ]; then
-  cat /etc/sysconfig/network-scripts/ifcfg-bond1 || $Error
-  sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-bond1 || $Error
-  echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-bond1 || $Error
-fi
+for in eth0 eth1 eth2 eth3 bond0 bond1
+do
+  if [ -e /etc/sysconfig/network-scripts/ifcfg-$i  ]; then
+    cat /etc/sysconfig/network-scripts/ifcfg-$i || $Error
+    sed -i -e '/^NM_CONTROLLED.*$/d' /etc/sysconfig/network-scripts/ifcfg-$i || $Error
+    echo 'NM_CONTROLLED=no' | tee -a /etc/sysconfig/network-scripts/ifcfg-$i || $Error
+  fi
+done
 sed -i -e '/^MTU=/d' /etc/sysconfig/network-scripts/ifcfg-$NIC0 || $Error
 if [ ! -d /proc/xen/ ]; then
   echo "MTU=9000" | tee -a /etc/sysconfig/network-scripts/ifcfg-$NIC0 || $Error
@@ -967,16 +945,30 @@ EOF
 chmod 755 /etc/init.d/stoned || $Error
 
 sed -i -e 's%^saslauth:.*$%saslauth:x:76:76:"Saslauthd user":/var/empty/saslauth:/sbin/nologin%' /etc/passwd || $Error
-groupadd -g 65502 haclient || $Error
-useradd -u 65502 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
-groupadd -g 65503 munin || $Error
-useradd -u 65503 -g munin -c "Munin user" -d /var/lib/munin -s /sbin/nologin -r munin || $Error
-groupadd -g 65504 vnstat || $Error
-useradd -u 65504 -g vnstat -c "vnStat user" -d /var/lib/vnstat -s /sbin/nologin -r vnstat || $Error
-groupadd -g 65505 ntop || $Error
-useradd -u 65505 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
+groupadd -g 65401 haclient || $Error
+useradd -u 65401 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
+groupadd -g 65402 munin || $Error
+useradd -u 65402 -g munin -c "Munin user" -d /var/lib/munin -s /sbin/nologin -r munin || $Error
+groupadd -g 65403 vnstat || $Error
+useradd -u 65403 -g vnstat -c "vnStat user" -d /var/lib/vnstat -s /sbin/nologin -r vnstat || $Error
+groupadd -g 65404 openvpn || $Error
+useradd -u 65404 -g openvpn -c OpenVPN -d /etc/openvpn -s /sbin/nologin -r openvpn || $Error
+groupadd -g 65405 clam || $Error
+useradd -u 65405 -g clam -c "Clam Anti Virus Checker" -d /var/lib/clamav -s /sbin/nologin -r clam || $Error
+groupadd -g 65406 clam-update || $Error
+useradd -u 65406 -g clam-update -c "clamav-unofficial-sigs user account" -d /var/lib/clamav-unofficial-sigs -r clam-update || $Error
+#groupadd -g 65407 clamsmtp || $Error
+useradd -u 65407 -g mail -c "User to own clamsmtp directories and default processes" -d /var/lib/clamd.clamsmtp -s /sbin/nologin -r clamsmtp || $Error
+groupadd -g 65408 memcached || $Error
+useradd -u 65408 -g memcached -c "Memcached daemon" -d /var/run/memcached -s /sbin/nologin -r memcached || $Error
+groupadd -g 65409 redis || $Error
+useradd -u 65409 -g redis -c "Redis Server" -d /var/lib/redis -s /sbin/nologin -r redis || $Error
+groupadd -g 65410 logcheck || $Error
+useradd -u 65410 -g logcheck -c "Logcheck user" -d /var/lib/logcheck -s /sbin/nologin -r logcheck || $Error
+groupadd -g 65411 ntop || $Error
+useradd -u 65411 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
 
-yum -y install \
+yum -y --enablerepo=epel install \
  cachefilesd \
  dialog \
  dstat \
@@ -1001,9 +993,7 @@ yum -y install \
  telnet \
  watchdog \
  xfsdump \
- xfsprogs-qa-devel || $Error
-
-yum -y --enablerepo=epel install \
+ xfsprogs-qa-devel \
  apachetop \
  atop \
  bash-completion \
@@ -1025,7 +1015,8 @@ yum -y --enablerepo=epel install \
  pipestat \
  pv \
  tcptraceroute \
- vnstat || $Error
+ vnstat \
+ || $Error
 
 yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
@@ -1126,6 +1117,16 @@ cat << 'EOF' | tee /etc/sysconfig/watchdog || $Error
 VERBOSE=no
 [ -d /proc/xen/ ] && modprobe softdog
 EOF
+
+vnstat --testkernel || $Error
+for i in $(vnstat --iflist | sed -n 's/^Available interfaces: //p')
+do
+  vnstat -u -i $i || $Error
+done
+if [ -r /var/lib/vnstat/bond0 ]; then
+  cat /etc/vnstat.conf || $Error
+  sed -i -e 's/^Interface .*$/Interface "bond0"/' /etc/vnstat.conf || $Error
+fi
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
@@ -2036,6 +2037,7 @@ do
     sshd         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     sysstat      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     udev-post    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    vnstat       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     watchdog     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
 
     netfs        ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
