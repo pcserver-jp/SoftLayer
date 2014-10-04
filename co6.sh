@@ -154,6 +154,61 @@ iptables -nvL || $Error
 iptables -t nat -nvL || $Error
 iptables -t mangle -nvL || $Error
 
+cat /etc/login.defs || $Error
+cat /etc/sysconfig/authconfig || $Error
+cat /etc/pam.d/password-auth || $Error
+cat /etc/pam.d/password-auth-ac || $Error
+cat /etc/pam.d/system-auth || $Error
+cat /etc/pam.d/system-auth-ac || $Error
+#authconfig --passalgo=sha512 --update || $Error
+#sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD  SHA512/' /etc/login.defs || $Error
+#sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs || $Error
+sed -i -e 's/^PASSWDALGORITHM=.*$/PASSWDALGORITHM=sha512/' /etc/sysconfig/authconfig || $Error
+sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth || $Error
+sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac || $Error
+sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth || $Error
+sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac || $Error
+
+cat << 'EOF' | tee /etc/login.defs || $Error
+MAIL_DIR        /var/spool/mail
+PASS_MAX_DAYS   99999
+PASS_MIN_DAYS   0
+PASS_MIN_LEN    5
+PASS_WARN_AGE   7
+UID_MIN         500
+UID_MAX         60000
+GID_MIN         500
+GID_MAX         60000
+CREATE_HOME     yes
+UMASK           077
+USERGROUPS_ENAB yes
+ENCRYPT_METHOD  SHA512
+SU_WHEEL_ONLY   yes
+EOF
+
+cat /etc/pam.d/su || $Error
+sed -i -e '/pam_wheel.so use_uid/ s/^#//' /etc/pam.d/su || $Error
+
+touch /etc/sudoers.d/wheel || $Error
+chmod 640 /etc/sudoers.d/wheel || $Error
+if [ "$WHEEL_SUDO_NOPASSWD" = "yes" ]; then
+  echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel || $Error
+else
+  echo '%wheel ALL=(ALL) ALL'           | tee /etc/sudoers.d/wheel || $Error
+fi
+
+cat /etc/default/useradd || $Error
+sed -i -e 's/^CREATE_MAIL_SPOOL=.*$/CREATE_MAIL_SPOOL=no/' /etc/default/useradd || $Error
+
+if ! id $MY_SL_ADMIN; then
+  groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
+  useradd -g $MY_SL_ADMIN -G wheel -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
+  echo $MY_SL_ADMIN_INIT_PW | passwd --stdin $MY_SL_ADMIN || $Error
+  chage -d 0 $MY_SL_ADMIN || $Error
+  cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
+  chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
+fi
+
 ifconfig || $Error
 route -n || $Error
 netstat -anp || $Error
@@ -644,61 +699,6 @@ hvc0
 ttyS0
 ttyS1
 EOF
-
-cat /etc/login.defs || $Error
-cat /etc/sysconfig/authconfig || $Error
-cat /etc/pam.d/password-auth || $Error
-cat /etc/pam.d/password-auth-ac || $Error
-cat /etc/pam.d/system-auth || $Error
-cat /etc/pam.d/system-auth-ac || $Error
-#authconfig --passalgo=sha512 --update || $Error
-#sed -i -e 's/^ENCRYPT_METHOD .*$/ENCRYPT_METHOD  SHA512/' /etc/login.defs || $Error
-#sed -i -e '/^MD5_CRYPT_ENAB/d' /etc/login.defs || $Error
-sed -i -e 's/^PASSWDALGORITHM=.*$/PASSWDALGORITHM=sha512/' /etc/sysconfig/authconfig || $Error
-sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth || $Error
-sed -i -e 's/md5/sha512/' /etc/pam.d/password-auth-ac || $Error
-sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth || $Error
-sed -i -e 's/md5/sha512/' /etc/pam.d/system-auth-ac || $Error
-
-cat << 'EOF' | tee /etc/login.defs || $Error
-MAIL_DIR        /var/spool/mail
-PASS_MAX_DAYS   99999
-PASS_MIN_DAYS   0
-PASS_MIN_LEN    5
-PASS_WARN_AGE   7
-UID_MIN         500
-UID_MAX         60000
-GID_MIN         500
-GID_MAX         60000
-CREATE_HOME     yes
-UMASK           077
-USERGROUPS_ENAB yes
-ENCRYPT_METHOD  SHA512
-SU_WHEEL_ONLY   yes
-EOF
-
-cat /etc/pam.d/su || $Error
-sed -i -e '/pam_wheel.so use_uid/ s/^#//' /etc/pam.d/su || $Error
-
-touch /etc/sudoers.d/wheel || $Error
-chmod 640 /etc/sudoers.d/wheel || $Error
-if [ "$WHEEL_SUDO_NOPASSWD" = "yes" ]; then
-  echo '%wheel ALL=(ALL) NOPASSWD: ALL' | tee /etc/sudoers.d/wheel || $Error
-else
-  echo '%wheel ALL=(ALL) ALL'           | tee /etc/sudoers.d/wheel || $Error
-fi
-
-cat /etc/default/useradd || $Error
-sed -i -e 's/^CREATE_MAIL_SPOOL=.*$/CREATE_MAIL_SPOOL=no/' /etc/default/useradd || $Error
-
-if ! id $MY_SL_ADMIN; then
-  groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
-  useradd -g $MY_SL_ADMIN -G wheel -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
-  echo $MY_SL_ADMIN_INIT_PW | passwd --stdin $MY_SL_ADMIN || $Error
-  chage -d 0 $MY_SL_ADMIN || $Error
-  cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
-  chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
-fi
 
 cat /etc/sysconfig/clock || $Error
 cat << 'EOF' | tee /etc/sysconfig/clock || $Error
