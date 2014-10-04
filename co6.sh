@@ -2032,6 +2032,7 @@ do
     iptables     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     irqbalance   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     network      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    postfix      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     psacct       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     rsyslog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
     sshd         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
