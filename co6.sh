@@ -1623,6 +1623,110 @@ tar xzvf pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz -C /tmp/ || $Error
 yum -y -c /tmp/pacemaker-1.0.13-2.1.el6.x86_64.repo/pacemaker.repo install pacemaker heartbeat pm_extras pm_diskd || $Error
 rm -rf /tmp/pacemaker-1.0.13-2.1.el6.x86_64.repo pacemaker-1.0.13-2.1.el6.x86_64.repo.tar.gz || $Error
 
+cat << 'EOF' | tee /etc/rsyslog.conf || $Error
+$umask 0000
+$FileCreateMode 0640
+$DirCreateMode 0750
+$FileOwner root
+$FileGroup wheel
+$ModLoad imuxsock
+$ModLoad imklog
+$ModLoad immark
+$ModLoad imudp
+$UDPServerRun 514
+$ModLoad imtcp
+$InputTCPServerRun 514
+$RepeatedMsgReduction off
+$SystemLogRateLimitInterval 0
+$MaxMessageSize 1048576
+$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+#$ActionFileEnableSync on
+$IncludeConfig /etc/rsyslog.d/*.conf
+
+$template DynamicFileName1,"/var/log/all/%$year%%$month%%$day%/%programname:::secpath-replace%.%syslogfacility-text%.log"
+$template DynamicFileName2,"/var/log/all/%$year%%$month%%$day%/all.log"
+*.*                                                     ?DynamicFileName1
+*.*                                                     ?DynamicFileName2
+:fromhost-ip, !isequal, "127.0.0.1"                     /dev/null
+& ~
+
+#kern.*                                                 /dev/console
+*.info;mail.none;authpriv.none;cron.none;local0.none;local1.none;local2.none;local3.none;local4.none;local5.none;local6.none /var/log/messages
+
+mail.*                                                  -/var/log/maillog
+authpriv.*                                              /var/log/secure
+cron.*                                                  /var/log/cron
+local1.*                                                /var/log/local1.log
+local2.*                                                /var/log/local2.log
+local3.*                                                /var/log/local3.log
+local4.*                                                /var/log/local4.log
+local5.*                                                /var/log/local5.log
+local6.*                                                /var/log/local6.log
+local7.*                                                /var/log/boot.log
+uucp,news.crit                                          /var/log/spooler
+
+*.emerg                                                 *
+
+#$WorkDirectory /var/lib/rsyslog
+#$ActionQueueFileName fwdRule1
+#$ActionQueueMaxDiskSpace 1g
+#$ActionQueueSaveOnShutdown on
+#$ActionQueueType LinkedList
+#$ActionResumeRetryCount -1
+#*.* @@remote-host:514
+#*.* @@remote-host:514
+EOF
+
+cat << 'EOF' | tee /etc/cron.d/rsyslog-delete || $Error
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+HOME=/
+40 4 * * * root find /var/log/all/ -daystart -mtime +365 -exec rm -rf {} \; > /dev/null 2>&1 || :
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/syslog
+/var/log/cron
+/var/log/maillog
+/var/log/messages
+/var/log/local1.log
+/var/log/local2.log
+/var/log/local3.log
+/var/log/local4.log
+/var/log/local5.log
+/var/log/local6.log
+/var/log/secure
+/var/log/spooler
+{
+    sharedscripts
+    postrotate
+        /bin/kill -HUP `cat /var/run/syslogd.pid 2> /dev/null` 2> /dev/null || true
+    endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.conf
+daily
+rotate 365
+create
+dateext
+#compress
+missingok
+include /etc/logrotate.d
+/var/log/wtmp {
+    monthly
+    create 0664 root utmp
+        minsize 1M
+    rotate 1
+}
+/var/log/btmp {
+    missingok
+    monthly
+    create 0600 root utmp
+    rotate 1
+}
+EOF
+
 cat /etc/sysconfig/ntpd || $Error
 cat << 'EOF' | tee /etc/sysconfig/ntpd || $Error
 # Drop root to id 'ntp:ntp' by default.
@@ -2362,7 +2466,8 @@ resource r0 {
 EOF
 
 if ! grep /var/log/ha-log /etc/rsyslog.conf; then
-  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local2.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local2.info                                             /var/log/ha-log' /etc/rsyslog.conf
+  sed -i -e 's%/var/log/local2.log%/var/log/ha-log%' /etc/rsyslog.conf
+  mv /var/log/local2.log /var/log/ha-log 2> /dev/null || :
   /etc/init.d/rsyslog restart
 fi
 
@@ -2373,7 +2478,12 @@ cat << 'EOF' | tee /etc/logrotate.d/syslog
 /var/log/cron
 /var/log/maillog
 /var/log/messages
+/var/log/local1.log
 /var/log/ha-log
+/var/log/local3.log
+/var/log/local4.log
+/var/log/local5.log
+/var/log/local6.log
 /var/log/secure
 /var/log/spooler
 {
