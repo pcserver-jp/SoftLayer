@@ -13,6 +13,7 @@ CENTOS_VER=6.5
 DEV_DOMAIN=dev.example.com
 STG_DOMAIN=stg.example.com
 PRD_DOMAIN=example.com
+MY_DOMAIN=$PRD_DOMAIN
 
 SL_ACCOUNT=SL999999
 SL_API_KEY=abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
@@ -128,6 +129,7 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 ########## Private VLAN ##########
 -A INPUT -p tcp  --dport 22   -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p tcp  --dport 3001 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
+-A INPUT -p tcp  --dport 3003 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p icmp                                          -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
@@ -215,33 +217,35 @@ if ! id $MY_SL_ADMIN; then
   chage -d 0 $MY_SL_ADMIN || $Error
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
   chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
-  cat << EOF | tee -a /home/$MY_SL_ADMIN/.bash_profile
+  cat << EOF | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
 DEV_DOMAIN=$DEV_DOMAIN
 STG_DOMAIN=$STG_DOMAIN
 PRD_DOMAIN=$PRD_DOMAIN
 EOF
-  cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile
+  cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
 if [ "$PS1" ]; then
   case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
     "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
     "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
     * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
   esac
+  alias dstat='dstat -Tclmdrn'
 fi
 EOF
 fi
-cat << EOF | tee -a /root/.bash_profile
+cat << EOF | tee -a /root/.bash_profile || $Error
 DEV_DOMAIN=$DEV_DOMAIN
 STG_DOMAIN=$STG_DOMAIN
 PRD_DOMAIN=$PRD_DOMAIN
 EOF
-cat << 'EOF' | tee -a /root/.bash_profile
+cat << 'EOF' | tee -a /root/.bash_profile || $Error
 if [ "$PS1" ]; then
   case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
     "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
     "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
     * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
   esac
+  alias dstat='dstat -Tclmdrn'
 fi
 EOF
 
@@ -793,6 +797,14 @@ enabled=0
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 EOF
   rm -rf /etc/yum.repos.d/CentOS-Base.repo.orig* || $Error
+  cat << 'EOF' | tee /etc/yum.repos.d/CentOS-SCL.repo || $Error
+[scl]
+name=CentOS-6 - SCL
+baseurl=http://mirrors.service.networklayer.com/centos/6/SCL/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+EOF
   cat /etc/yum.repos.d/CentOS-Vault.repo || $Error
   cat << 'EOF' | tee /etc/yum.repos.d/CentOS-Vault.repo || $Error
 # CentOS-Vault.repo
@@ -806,7 +818,7 @@ EOF
 name=CentOS-6.0 - Base
 baseurl=http://vault.centos.org/6.0/os/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -814,7 +826,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.0 - Updates
 baseurl=http://vault.centos.org/6.0/updates/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -822,7 +834,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.0 - Extras
 baseurl=http://vault.centos.org/6.0/extras/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
@@ -830,14 +842,14 @@ exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen
 name=CentOS-6.0 - Contrib
 baseurl=http://vault.centos.org/6.0/contrib/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.0-centosplus]
 name=CentOS-6.0 - CentOSPlus
 baseurl=http://vault.centos.org/6.0/centosplus/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 #-----------------
 
@@ -845,7 +857,7 @@ enabled=0
 name=CentOS-6.1 - Base
 baseurl=http://vault.centos.org/6.1/os/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -853,7 +865,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.1 - Updates
 baseurl=http://vault.centos.org/6.1/updates/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -861,7 +873,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.1 - Extras
 baseurl=http://vault.centos.org/6.1/extras/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
@@ -869,14 +881,14 @@ exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen
 name=CentOS-6.1 - Contrib
 baseurl=http://vault.centos.org/6.1/contrib/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.1-centosplus]
 name=CentOS-6.1 - CentOSPlus
 baseurl=http://vault.centos.org/6.1/centosplus/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 #-----------------
 
@@ -884,7 +896,7 @@ enabled=0
 name=CentOS-6.2 - Base
 baseurl=http://vault.centos.org/6.2/os/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -892,7 +904,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.2 - Updates
 baseurl=http://vault.centos.org/6.2/updates/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -900,7 +912,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.2 - Extras
 baseurl=http://vault.centos.org/6.2/extras/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
@@ -908,14 +920,14 @@ exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen
 name=CentOS-6.2 - Contrib
 baseurl=http://vault.centos.org/6.2/contrib/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.2-centosplus]
 name=CentOS-6.2 - CentOSPlus
 baseurl=http://vault.centos.org/6.2/centosplus/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 #-----------------
 
@@ -923,7 +935,7 @@ enabled=0
 name=CentOS-6.3 - Base
 baseurl=http://vault.centos.org/6.3/os/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -931,7 +943,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.3 - Updates
 baseurl=http://vault.centos.org/6.3/updates/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -939,7 +951,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.3 - Extras
 baseurl=http://vault.centos.org/6.3/extras/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
@@ -947,14 +959,14 @@ exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen
 name=CentOS-6.3 - Contrib
 baseurl=http://vault.centos.org/6.3/contrib/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.3-centosplus]
 name=CentOS-6.3 - CentOSPlus
 baseurl=http://vault.centos.org/6.3/centosplus/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 #-----------------
 
@@ -962,7 +974,7 @@ enabled=0
 name=CentOS-6.4 - Base
 baseurl=http://vault.centos.org/6.4/os/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -970,7 +982,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.4 - Updates
 baseurl=http://vault.centos.org/6.4/updates/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
 
@@ -978,7 +990,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 name=CentOS-6.4 - Extras
 baseurl=http://vault.centos.org/6.4/extras/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
 
@@ -986,14 +998,14 @@ exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen
 name=CentOS-6.4 - Contrib
 baseurl=http://vault.centos.org/6.4/contrib/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.4-centosplus]
 name=CentOS-6.4 - CentOSPlus
 baseurl=http://vault.centos.org/6.4/centosplus/$basearch/
 gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 EOF
 fi
@@ -1023,10 +1035,10 @@ failovermethod=priority
 enabled=0
 gpgcheck=1
 gpgkey=http://ftp.riken.jp/Linux/fedora/epel/RPM-GPG-KEY-EPEL-6
-exclude=epel-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* armadillo* python-argcomplete python-argh v8 v8-devel
+exclude=epel-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* armadillo* python-argcomplete python-argh v8 v8-devel zabbix* sl
 EOF
 
-cat << 'EOF' | tee /etc/yum.repos.d/remi.repo
+cat << 'EOF' | tee /etc/yum.repos.d/remi.repo || $Error
 [remi]
 name=Les RPM de remi pour Enterprise Linux 6 - x86_64
 #baseurl=http://rpms.famillecollet.com/enterprise/6/remi/x86_64/
@@ -1064,7 +1076,7 @@ gpgcheck=1
 enabled=0
 EOF
 
-cat << 'EOF' | tee /etc/yum.repos.d/pgdg-93-centos.repo
+cat << 'EOF' | tee /etc/yum.repos.d/pgdg-93-centos.repo || $Error
 [pgdg93]
 name=PostgreSQL 9.3 rhel6 - x86_64
 baseurl=http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64
@@ -1074,15 +1086,60 @@ gpgkey=http://yum.postgresql.org/RPM-GPG-KEY-PGDG-93
 exclude=pgdg-centos93 pgdg-oraclelinux93 pgdg-redhat93 pgdg-sl93 usda-r18 libevent-devel
 EOF
 
-cat << 'EOF' | tee /etc/yum.repos.d/rpmforge.repo
+cat << 'EOF' | tee /etc/yum.repos.d/rpmforge.repo || $Error
 [rpmforge]
-name = RHEL $releasever - RPMforge.net - dag
-baseurl = http://apt.sw.be/redhat/el6/en/$basearch/rpmforge
+name = RHEL 6 - RPMforge.net - dag
+baseurl = http://apt.sw.be/redhat/el6/en/x86_64/rpmforge
 mirrorlist = http://mirrorlist.repoforge.org/el6/mirrors-rpmforge
 enabled = 0
 gpgkey = http://apt.sw.be/RPM-GPG-KEY.dag.txt
 gpgcheck = 1
 includepkgs=lv
+EOF
+
+cat << 'EOF' | sudo tee /etc/yum.repos.d/zabbix.repo || $Error
+[zabbix]
+name=Zabbix Official Repository - x86_64
+baseurl=http://repo.zabbix.com/zabbix/2.2/rhel/6/x86_64/
+enabled=0
+gpgcheck=1
+gpgkey=http://repo.zabbix.com/RPM-GPG-KEY-ZABBIX
+exclude=zabbix-release zabbix-proxy* zabbix-server-pgsql zabbix-server-sqlite3 zabbix-web-pgsql zabbix-web-sqlite3
+
+[zabbix-non-supported]
+name=Zabbix Official Repository non-supported - x86_64
+baseurl=http://repo.zabbix.com/non-supported/rhel/6/x86_64/
+enabled=0
+gpgkey=http://repo.zabbix.com/RPM-GPG-KEY-ZABBIX
+gpgcheck=1
+exclude=zabbix-release
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/glusterfs-epel.repo || $Error
+[glusterfs-epel]
+name=GlusterFS is a clustered file-system capable of scaling to several petabytes.
+baseurl=http://download.gluster.org/pub/gluster/glusterfs/LATEST/EPEL.repo/epel-6/x86_64/
+enabled=0
+skip_if_unavailable=1
+gpgcheck=1
+gpgkey=http://download.gluster.org/pub/gluster/glusterfs/LATEST/EPEL.repo/pub.key
+
+[glusterfs-noarch-epel]
+name=GlusterFS is a clustered file-system capable of scaling to several petabytes.
+baseurl=http://download.gluster.org/pub/gluster/glusterfs/LATEST/EPEL.repo/epel-6/noarch
+enabled=0
+skip_if_unavailable=1
+gpgcheck=1
+gpgkey=http://download.gluster.org/pub/gluster/glusterfs/LATEST/EPEL.repo/pub.key
+EOF
+
+cat << 'EOF' | tee /etc/yum.repos.d/nginx.repo || $Error
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/6/x86_64/
+enabled=0
+gpgkey=http://nginx.org/packages/keys/nginx_signing.key
+gpgcheck=1
 EOF
 
 rpm -qa | LANG=C sort || $Error
@@ -1242,68 +1299,200 @@ groupadd -g 65410 logcheck || $Error
 useradd -u 65410 -g logcheck -c "Logcheck user" -d /var/lib/logcheck -s /sbin/nologin -r logcheck || $Error
 groupadd -g 65411 ntop || $Error
 useradd -u 65411 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
+groupadd -g 65412 cgred || $Error
+groupadd -g 65413 ecryptfs || $Error
+groupadd -g 65414 rsshusers || $Error
 
 yum -y --enablerepo=epel,pgdg93 install \
- libevent \
+ aide \
+ apachetop \
+ arp-scan \
+ arptables_jf \
+ arpwatch \
+ atop \
+ autossh \
+ bash-completion \
+ bonnie++ \
+ btrfs-progs \
+ cachefilesd \
+ chkrootkit \
+ clamav\* \
+ clamd \
+ clamsmtp \
+ colordiff \
+ colorize \
  compat-libevent14 \
  compat-libevent14-devel \
- cachefilesd \
+ conntrack-tools \
+ cpuid \
+ createrepo \
+ ctags-etags \
+ daemonize \
+ dd_rescue \
+ device-mapper-multipath \
+ dhcping \
  dialog \
- dstat \
- gdb \
- iotop \
- iptstate \
- ipvsadm \
- keepalived \
- latencytop-tui \
- ltrace \
- mod_ssl \
- nfs-utils \
- oprofile \
- perl-Authen-SASL \
- perl-MIME-tools \
- powertop \
- python-setuptools \
- screen \
- systemtap-initscript \
- systemtap-sdt-devel \
- systemtap-server \
- telnet \
- watchdog \
- xfsdump \
- xfsprogs-qa-devel \
- apachetop \
- atop \
- bash-completion \
+ disktype \
+ dkms \
+ dnsmasq \
+ dnsperf \
  dnstop \
+ dnstracer \
+ dos2unix \
+ dropwatch \
+ dstat \
+ dump \
+ dwatch \
+ ecryptfs-utils \
+ elinks \
  ethstatus \
+ expect \
+ fail2ban \
+ fakechroot \
+ fakeroot \
  fio \
+ fping \
  ftop \
+ ftp \
+ gdb \
+ haproxy \
+ hardlink \
+ hatools \
+ hddtemp \
+ hping3 \
  htop \
+ httpd24 \
+ httpd24-mod_ssl \
  ifstatus \
  iftop \
  innotop \
+ inotify-tools \
+ ioping \
+ ioprocess \
+ iotop \
+ iperf3 \
+ ipmiutil \
+ ipset \
+ iptraf \
+ iptstate \
+ ipvsadm \
+ ipwatchd \
+ jq \
+ keepalived \
+ latencytop-tui \
+ libevent \
+ livecd-tools \
+ lm_sensors \
+ lm_sensors-sensord \
+ logcheck \
+ logwatch \
+ lrzsz \
+ lsscsi \
  lsyncd \
+ ltrace \
+ man-pages-ja \
+ memcached \
+ mon \
+ monit \
  munin \
+ munin-async \
  munin-node \
  mx \
  mytop \
+ nc \
+ net-snmp \
+ net-snmp-devel \
+ net-snmp-utils \
  netstat-nat \
+ nfsometer \
+ nfs-utils \
+ ngrep \
+ nkf \
+ nload \
+ nmap \
+ nscd \
+ ntfs-3g \
+ ntfsprogs \
  ntop \
+ numad \
+ nwipe \
+ omping \
+ OpenIPMI-libs \
+ openvpn \
+ oprofile \
+ p7zip \
+ pbzip2 \
+ perf \
+ perl-Authen-SASL \
+ perl-MIME-tools \
+ pexpect \
  pipestat \
+ powertop \
+ pssh \
  pv \
+ PyMunin \
+ python-setuptools \
+ redhat-rpm-config \
+ redis \
+ repoview \
+ rlwrap \
+ rootsh \
+ rpm-build \
+ rpmconf \
+ rpmdevtools \
+ rpmlint \
+ rpmreaper \
+ rpmrebuild \
+ rssh \
+ samba4\* \
+ schroot \
+ scl-utils-build \
+ screen \
+ scsi-target-utils \
+ sg3_utils \
+ sg3_utils-devel \
+ slowhttptest \
+ sockperf \
+ squashfs-tools \
+ squid \
+ squidGuard \
+ ssldump \
+ sslscan \
+ stress \
+ stunnel \
+ subnetcalc \
+ subversion \
+ swatch \
+ sysbench \
+ sysfsutils \
+ syslinux \
+ sysprof \
+ systemtap-initscript \
+ systemtap-sdt-devel \
+ systemtap-server \
+ tcping \
  tcptraceroute \
+ telnet \
+ tftp \
+ tree \
+ unique \
+ unix2dos \
  vnstat \
+ w3m \
+ watchdog \
+ wipe \
+ xfsdump \
+ xfsprogs-qa-devel \
  || $Error
 
 #yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
 yum -y --enablerepo=epel,remi install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
-yum -y localinstall http://www.percona.com/downloads/XtraBackup/LATEST/binary/redhat/6/x86_64/percona-xtrabackup-2.2.4-5004.el6.x86_64.rpm
+yum -y localinstall http://www.percona.com/downloads/XtraBackup/LATEST/binary/redhat/6/x86_64/percona-xtrabackup-2.2.4-5004.el6.x86_64.rpm || $Error
 
-yum -y localinstall http://www.percona.com/downloads/percona-toolkit/LATEST/RPM/percona-toolkit-2.2.11-1.noarch.rpm
+yum -y localinstall http://www.percona.com/downloads/percona-toolkit/LATEST/RPM/percona-toolkit-2.2.11-1.noarch.rpm || $Error
 
-#yum -y localinstall file:///C:/Users/dba/Documents/Downloads/percona-zabbix-templates-1.1.4-1.noarch.rpm
+#yum -y localinstall file:///C:/Users/dba/Documents/Downloads/percona-zabbix-templates-1.1.4-1.noarch.rpm || $Error
 
 yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 
@@ -1414,7 +1603,7 @@ yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 #EOF
 #yum -y install --enablerepo=epel,pgdg93,home_viliampucik_rhel powa_93 powa_93-ui || $Error
 
-yum -y --enablerepo=rpmforge install lv
+yum -y --enablerepo=rpmforge install lv || $Error
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
@@ -1543,7 +1732,7 @@ pkill ntop || $Error
 #  /etc/init.d/rsyslog restart || $Error
 #fi
 
-cat << 'EOF' | tee /etc/logrotate.d/ntop
+cat << 'EOF' | tee /etc/logrotate.d/ntop || $Error
 /var/log/ntop.access {
   daily
   rotate 366
@@ -1557,6 +1746,49 @@ cat << 'EOF' | tee /etc/logrotate.d/ntop
 }
 EOF
 
+sed -i -e 's/^Listen/#Listen/p' /opt/rh/httpd24/root/etc/httpd/conf/httpd.conf || $Error
+sed -i -e 's/443/3003/g' /opt/rh/httpd24/root/etc/httpd/conf.d/ssl.conf || $Error
+mv /var/www/html/munin /opt/rh/httpd24/root/var/www/html/ || $Error
+ln -s /opt/rh/httpd24/root/var/www/html/munin /var/www/html/munin || $Error
+
+cat << 'EOF' | tee /opt/rh/httpd24/root/etc/httpd/conf.d/status.conf || $Error
+#LoadModule status_module modules/mod_status.so
+<IfModule mod_status.c>
+  ExtendedStatus On
+  <Location /server-status>
+    SetHandler server-status
+    Order deny,allow
+    Deny from all
+    Allow from 127.0.0.1
+    Allow from 10.
+  </Location>
+</IfModule>
+EOF
+
+: | tee /etc/httpd/conf.d/munin.conf || $Error
+mv /var/www/cgi-bin/munin-cgi-graph /opt/rh/httpd24/root/var/www/cgi-bin/ || $Error
+ln -s /opt/rh/httpd24/root/var/www/cgi-bin/munin-cgi-graph /var/www/cgi-bin/munin-cgi-graph || $Error
+cat << 'EOF' | tee /opt/rh/httpd24/root/etc/httpd/conf.d/munin.conf || $Error
+<directory /opt/rh/httpd24/root/var/www/html/munin>
+#AuthUserFile /etc/munin/munin-htpasswd
+#AuthName "Munin"
+#AuthType Basic
+#require valid-user
+Order Deny,Allow
+Deny from all
+Allow from 127.0.0.1
+Allow from 10.
+
+#LoadModule expires_module modules/mod_expires.so
+ExpiresActive On
+ExpiresDefault M310
+</directory>
+ScriptAlias /munin-cgi/munin-cgi-graph /opt/rh/httpd24/root/var/www/cgi-bin/munin-cgi-graph
+EOF
+#MY_MUNIN_PW=$(dd if=/dev/urandom bs=1 count=6 2> /dev/null | base64)
+#echo -n $MY_MUNIN_PW | tee /root/.pw/munin > /dev/null
+#chmod 400 /root/.pw/munin
+#htpasswd -b /etc/munin/munin-htpasswd munin $MY_MUNIN_PW
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
@@ -1998,6 +2230,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p udp --dport 32769 -m udp -m state --state NEW -s $VIP_CLIENTS -d $HA_VIP -j ACCEPT
 -A INPUT -p tcp --dport 22    -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p tcp --dport 3001  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
+-A INPUT -p tcp --dport 3003  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
 #-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
@@ -2457,26 +2690,27 @@ for i in $(ls /etc/init.d/)
 do
   chkconfig --del $i || :
   case $i in
-    atd          ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    auditd       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    crond        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    iptables     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    irqbalance   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    munin-node   ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    network      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    ntop         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    postfix      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    psacct       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    rsyslog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    sshd         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    sysstat      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    udev-post    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    vnstat       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
-    watchdog     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    atd           ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    auditd        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    crond         ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    httpd24-httpd ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    iptables      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    irqbalance    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    munin-node    ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    network       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    ntop          ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    postfix       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    psacct        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    rsyslog       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    sshd          ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    sysstat       ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    udev-post     ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    vnstat        ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
+    watchdog      ) chkconfig --add $i || $Error; chkconfig $i on  || $Error;;
 
-    netfs        ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
-    nfslock      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
-    rpcbind      ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    netfs         ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    nfslock       ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
+    rpcbind       ) chkconfig --add $i || $Error; chkconfig $i off || $Error;;
   esac
 done
 if [ -d /proc/xen/ ]; then
