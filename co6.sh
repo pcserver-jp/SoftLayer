@@ -1766,6 +1766,8 @@ cat << 'EOF' | tee /opt/rh/httpd24/root/etc/httpd/conf.d/status.conf || $Error
 EOF
 
 : | tee /etc/httpd/conf.d/munin.conf || $Error
+mv /var/www/cgi-bin/munin-cgi-html /opt/rh/httpd24/root/var/www/cgi-bin/ || $Error
+ln -s /opt/rh/httpd24/root/var/www/cgi-bin/munin-cgi-html /var/www/cgi-bin/munin-cgi-html || $Error
 mv /var/www/cgi-bin/munin-cgi-graph /opt/rh/httpd24/root/var/www/cgi-bin/ || $Error
 ln -s /opt/rh/httpd24/root/var/www/cgi-bin/munin-cgi-graph /var/www/cgi-bin/munin-cgi-graph || $Error
 cat << 'EOF' | tee /opt/rh/httpd24/root/etc/httpd/conf.d/munin.conf || $Error
