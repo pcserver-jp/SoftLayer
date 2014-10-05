@@ -1481,6 +1481,21 @@ yum -y --enablerepo=epel,pgdg93 install \
  xfsprogs-qa-devel \
  || $Error
 
+#yum -y install \
+# httpd24* \
+# mariadb55* \
+# mysql55* \
+# nodejs010* \
+# perl516* \
+# php54* \
+# postgresql92* \
+# python33* \
+# ruby193* \
+# v8314* \
+# libyaml-devel \
+# || $Error
+## python27*
+
 #yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
 yum -y --enablerepo=epel,remi install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
@@ -1718,7 +1733,7 @@ cat << EOF | tee /etc/ntop.conf || $Error
 --skip-version-check=yes
 --interface=$NICs
 EOF
-sed -i -e 's/^pidfile=.*$/pidfile=/var/lib/ntop/ntop.pid/' /etc/init.d/ntop || $Error
+sed -i -e 's%^pidfile=.*$%pidfile=/var/lib/ntop/ntop.pid%' /etc/init.d/ntop || $Error
 #sed -i -e 's/config --daemon/config --use-syslog=local1 --daemon/' /etc/init.d/ntop || $Error
 ntop --set-admin-password=$MY_NTOP_PW || $Error
 pkill ntop || $Error
@@ -1784,10 +1799,31 @@ ExpiresDefault M310
 ScriptAlias /munin-cgi/munin-cgi-graph /opt/rh/httpd24/root/var/www/cgi-bin/munin-cgi-graph
 EOF
 #MY_MUNIN_PW=$(dd if=/dev/urandom bs=1 count=6 2> /dev/null | base64)
-#echo -n $MY_MUNIN_PW | tee /root/.pw/munin > /dev/null
-#chmod 400 /root/.pw/munin
-#htpasswd -b /etc/munin/munin-htpasswd munin $MY_MUNIN_PW
-sed -i -e 's%^#htmldir.*$%htmldir /opt/rh/httpd24/root/var/www/html/munin%' /etc/munin/munin.conf
+#echo -n $MY_MUNIN_PW | tee /root/.pw/munin > /dev/null || $Error
+#chmod 400 /root/.pw/munin || $Error
+#htpasswd -b /etc/munin/munin-htpasswd munin $MY_MUNIN_PW || $Error
+sed -i -e 's%^#htmldir.*$%htmldir /opt/rh/httpd24/root/var/www/html/munin%' /etc/munin/munin.conf || $Error
+
+ln -s /usr/share/munin/plugins/munin_stats /etc/munin/plugins/munin_stats
+
+mkdir -p /usr/local/share/munin || $Error
+cd /usr/local/share/munin || $Error
+git clone https://github.com/munin-monitoring/contrib.git || $Error
+cd || $Error
+
+echo; \
+echo --------------------------------------------------------------------------------; \
+echo /usr/share/munin/plugins/; \
+munin-node-configure --suggest; \
+j=$(for j in /usr/local/share/munin/contrib/plugins/* /usr/local/share/munin/contrib/plugins/*/* /usr/local/share/munin/contrib/plugins/*/*/*; do echo $j; done | sort); \
+for i in $j
+do
+  [ -d $i ] || continue
+  echo
+  echo --------------------------------------------------------------------------------
+  echo $i/
+  munin-node-configure --libdir $i/ --suggest | grep -v ^Plugin | grep -v ^------
+done
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
