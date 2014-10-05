@@ -1316,9 +1316,6 @@ yum -y --enablerepo=epel,pgdg93 install \
  btrfs-progs \
  cachefilesd \
  chkrootkit \
- clamav\* \
- clamd \
- clamsmtp \
  colordiff \
  colorize \
  compat-libevent14 \
@@ -1384,7 +1381,6 @@ yum -y --enablerepo=epel,pgdg93 install \
  livecd-tools \
  lm_sensors \
  lm_sensors-sensord \
- logcheck \
  logwatch \
  lrzsz \
  lsscsi \
@@ -1791,6 +1787,7 @@ EOF
 #echo -n $MY_MUNIN_PW | tee /root/.pw/munin > /dev/null
 #chmod 400 /root/.pw/munin
 #htpasswd -b /etc/munin/munin-htpasswd munin $MY_MUNIN_PW
+sed -i -e 's%^#htmldir.*$%htmldir /opt/rh/httpd24/root/var/www/html/munin%' /etc/munin/munin.conf
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
