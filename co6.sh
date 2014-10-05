@@ -1736,7 +1736,7 @@ EOF
 sed -i -e 's%^pidfile=.*$%pidfile=/var/lib/ntop/ntop.pid%' /etc/init.d/ntop || $Error
 #sed -i -e 's/config --daemon/config --use-syslog=local1 --daemon/' /etc/init.d/ntop || $Error
 ntop --set-admin-password=$MY_NTOP_PW || $Error
-pkill ntop || $Error
+pkill ntop || :
 
 #if ! grep /var/log/ntop /etc/rsyslog.conf; then
 #  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.*                                                /var/log/ntop' /etc/rsyslog.conf || $Error
