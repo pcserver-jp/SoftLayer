@@ -10,10 +10,10 @@ WHEEL_SUDO_NOPASSWD=yes
 MY_NTOP_PW=$(dd if=/dev/urandom bs=1 count=6 2> /dev/null | base64)
 CENTOS_VER=6.5
 
-DEV_DOMAIN=dev.example.com
-STG_DOMAIN=stg.example.com
-PRD_DOMAIN=example.com
-MY_DOMAIN=$PRD_DOMAIN
+#DEV_COLOR="1;42m"
+#STG_COLOR="5;43m"
+#PRD_COLOR="1;41m"
+MY_COLOR="1;41m"
 
 SL_ACCOUNT=SL999999
 SL_API_KEY=abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01
@@ -217,37 +217,23 @@ if ! id $MY_SL_ADMIN; then
   chage -d 0 $MY_SL_ADMIN || $Error
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
   chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
-  cat << EOF | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
-DEV_DOMAIN=$DEV_DOMAIN
-STG_DOMAIN=$STG_DOMAIN
-PRD_DOMAIN=$PRD_DOMAIN
-EOF
   cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
 if [ "$PS1" ]; then
-  case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
-    "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
-    "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
-    * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
-  esac
+  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '
   alias dstat='dstat -Tclmdrn'
 fi
 EOF
 fi
-cat << EOF | tee -a /root/.bash_profile || $Error
-DEV_DOMAIN=$DEV_DOMAIN
-STG_DOMAIN=$STG_DOMAIN
-PRD_DOMAIN=$PRD_DOMAIN
-EOF
 cat << 'EOF' | tee -a /root/.bash_profile || $Error
 if [ "$PS1" ]; then
-  case "$(uname -n | sed -n 's/^[^.]*.\(.*\)$/\1/p')" in
-    "$DEV_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[1;42m\]\H\[\e[0m\] \t \w] \$ ';;
-    "$STG_DOMAIN" ) [ "$PS1" ] && PS1='[\u@\[\e[5;43m\]\H\[\e[0m\] \t \w] \$ ';;
-    * )             [ "$PS1" ] && PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ ';;
-  esac
+  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '
   alias dstat='dstat -Tclmdrn'
 fi
 EOF
+if [ MY_COLOR != "1;41m" ]; then
+  sed -i -e "s/1;41m/$MY_COLOR/" /home/$MY_SL_ADMIN/.bash_profile  || $Error
+  sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile  || $Error
+fi
 
 ifconfig || $Error
 route -n || $Error
