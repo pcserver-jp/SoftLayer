@@ -210,6 +210,30 @@ fi
 cat /etc/default/useradd || $Error
 sed -i -e 's/^CREATE_MAIL_SPOOL=.*$/CREATE_MAIL_SPOOL=no/' /etc/default/useradd || $Error
 
+cat << 'EOF' | tee /usr/local/bin/logger_ex || $Error
+#!/usr/bin/perl
+my $ident = $ARGV[0];
+my $facility = $ARGV[1];
+my $level = $ARGV[2];
+use Sys::Syslog qw( :DEFAULT setlogsock );
+setlogsock('unix');
+openlog($ident, 'pid', $facility);
+while ($log = <STDIN>) {
+  syslog($level, $log);
+}
+closelog
+EOF
+chmod 755 /usr/local/bin/logger_ex || $Error
+
+cat << 'EOF' | tee /usr/local/bin/operation_logger || $Error
+#!/bin/bash
+export PROMPT_COMMAND='printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}";alias l.="ls -d .* --color=auto";alias ll="ls -l --color=auto";alias ls="ls --color=auto";alias vi="vim";alias which="alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde";alias dstat="dstat -Tclmdrn";[ "$PS1" ] && PS1='\''[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '\'';PROMPT_COMMAND='\''printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}"'\'
+/usr/bin/mkfifo -m 0600 /dev/shm/$USER.$$
+(/bin/sed -u -e 's/[^[:graph:]]/ /g' /dev/shm/$USER.$$ | /usr/local/bin/logger_ex $USER.$$ local0 info; /bin/rm -f /dev/shm/$USER.$$) &
+exec /usr/bin/script -fq /dev/shm/$USER.$$
+EOF
+chmod 755 /usr/local/bin/operation_logger || $Error
+
 if ! id $MY_SL_ADMIN; then
   groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
   useradd -g $MY_SL_ADMIN -G wheel -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
@@ -218,10 +242,7 @@ if ! id $MY_SL_ADMIN; then
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
   chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
   cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
-if [ "$PS1" ]; then
-  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '
-  alias dstat='dstat -Tclmdrn'
-fi
+[ "$PS1" ] && exec /usr/local/bin/operation_logger
 EOF
 fi
 cat << 'EOF' | tee -a /root/.bash_profile || $Error
@@ -231,8 +252,8 @@ if [ "$PS1" ]; then
 fi
 EOF
 if [ MY_COLOR != "1;41m" ]; then
-  sed -i -e "s/1;41m/$MY_COLOR/" /home/$MY_SL_ADMIN/.bash_profile  || $Error
-  sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile  || $Error
+  sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
+  sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile || $Error
 fi
 
 ifconfig || $Error
@@ -1629,10 +1650,13 @@ $ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
 #$ActionFileEnableSync on
 $IncludeConfig /etc/rsyslog.d/*.conf
 
-$template DynamicFileName1,"/var/log/all/%$year%%$month%%$day%/%programname:::secpath-replace%.%syslogfacility-text%.log"
+$template DynamicFileName0,"/var/log/all/operation/%programname:::secpath-replace%.log"
+$template DynamicFileName1,"/var/log/all/%$year%%$month%%$day%/%programname:::secpath-replace%.log"
 $template DynamicFileName2,"/var/log/all/%$year%%$month%%$day%/all.log"
-*.*                                                     ?DynamicFileName1
-*.*                                                     ?DynamicFileName2
+
+local0.*                                                ?DynamicFileName0
+*.*;local0.none                                         ?DynamicFileName1
+*.*;local0.none                                         ?DynamicFileName2
 :fromhost-ip, !isequal, "127.0.0.1"                     /dev/null
 & ~
 
