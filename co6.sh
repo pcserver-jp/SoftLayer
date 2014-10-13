@@ -227,7 +227,7 @@ chmod 755 /usr/local/bin/logger_ex || $Error
 
 cat << 'EOF' | tee /usr/local/bin/operation_logger || $Error
 #!/bin/bash
-export PROMPT_COMMAND='printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}";alias l.="ls -d .* --color=auto";alias ll="ls -l --color=auto";alias ls="ls --color=auto";alias vi="vim";alias which="alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde";alias dstat="dstat -Tclmdrn";[ "$PS1" ] && PS1='\''[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '\'';PROMPT_COMMAND='\''printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}"'\'
+export PROMPT_COMMAND='printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}";alias l.="ls -d .* --color=auto";alias ll="ls -l --color=auto";alias ls="ls --color=auto";alias vi="vim";alias which="alias | /usr/bin/which --tty-only --read-alias --show-dot --show-tilde";alias dstat="dstat -Tclmdrn";[ "$PS1" ] && PS1='\''[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \n\$ '\'';PROMPT_COMMAND='\''printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME}" "${PWD/#$HOME/~}"'\'
 /usr/bin/mkfifo -m 0600 /dev/shm/$USER.$$
 (/bin/sed -u -e 's/[^[:graph:]]/ /g' /dev/shm/$USER.$$ | /usr/local/bin/logger_ex $USER.$$ local0 info; /bin/rm -f /dev/shm/$USER.$$) &
 exec /usr/bin/script -fq /dev/shm/$USER.$$
@@ -244,16 +244,19 @@ if ! id $MY_SL_ADMIN; then
   cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
 [ "$PS1" ] && exec /usr/local/bin/operation_logger
 EOF
-fi
-cat << 'EOF' | tee -a /root/.bash_profile || $Error
+  cat << 'EOF' | tee -a /etc/skel/.bash_profile || $Error
+[ "$PS1" ] && exec /usr/local/bin/operation_logger
+EOF
+  cat << 'EOF' | tee -a /root/.bash_profile || $Error
 if [ "$PS1" ]; then
-  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \$ '
+  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \n\$ '
   alias dstat='dstat -Tclmdrn'
 fi
 EOF
-if [ MY_COLOR != "1;41m" ]; then
-  sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
-  sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile || $Error
+  if [ MY_COLOR != "1;41m" ]; then
+    sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
+    sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile || $Error
+  fi
 fi
 
 ifconfig || $Error
@@ -350,7 +353,11 @@ if ! grep -q '^NOZEROCONF' /etc/sysconfig/network; then
 NOZEROCONF=yes
 NETWORKING_IPV6=no
 IPV6INIT=no
+IPV6_ROUTER=no
 IPV6_AUTOCONF=no
+IPV6FORWARDING=no
+IPV6TO4INIT=no
+IPV6_CONTROL_RADVD=no
 IPV4_FAILURE_FATAL=yes
 EOF
 fi
@@ -2686,7 +2693,7 @@ part / --recommended
 @Core
 %end
 EOF
-cat << 'EOF' | tee -a $NFS_EXPORT_POINT/ks/backup_boot_root.cfg
+  cat << 'EOF' | tee -a $NFS_EXPORT_POINT/ks/backup_boot_root.cfg
 %pre
 [ -d /proc/xen/ ] || exec < /dev/tty3 > /dev/tty3 2>&1
 [ -d /proc/xen/ ] || /usr/bin/chvt 3
@@ -2764,7 +2771,7 @@ elif [ "$INIT_MODE" = "SLAVE" ]; then
   sed -i -e '/wfc-timeout/ s/^\([^#]\)/#wfc#\1/' /etc/drbd.d/global_common.conf || exit 1
   rm -f $(find /var/lib/pengine/) $(find /var/lib/heartbeat/crm/) /var/lib/heartbeat/hb_generation 2> /dev/null
   /etc/init.d/heartbeat start || exit 1
-  while ! grep -q sync /proc/drbd; do date;sleep 5; done
+  while ! grep -q sync /proc/drbd 2> /dev/null; do date;sleep 5; done
   cat /proc/drbd
   while grep sync /proc/drbd; do date;sleep 60; done
   cat /proc/drbd
