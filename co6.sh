@@ -131,7 +131,7 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -p tcp  --dport 3001 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p tcp  --dport 3003 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p icmp                                          -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
+#-A INPUT -j LOG --log-prefix "ip_tables: " --log-level=debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
@@ -235,8 +235,35 @@ EOF
 chmod 755 /usr/local/bin/operation_logger || $Error
 
 if ! id $MY_SL_ADMIN; then
+  sed -i -e 's%^saslauth:.*$%saslauth:x:76:76:"Saslauthd user":/var/empty/saslauth:/sbin/nologin%' /etc/passwd || $Error
+  groupadd -g 65401 haclient || $Error
+  useradd -u 65401 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
+  groupadd -g 65402 munin || $Error
+  useradd -u 65402 -g munin -c "Munin user" -d /var/lib/munin -s /sbin/nologin -r munin || $Error
+  groupadd -g 65403 vnstat || $Error
+  useradd -u 65403 -g vnstat -c "vnStat user" -d /var/lib/vnstat -s /sbin/nologin -r vnstat || $Error
+  groupadd -g 65404 openvpn || $Error
+  useradd -u 65404 -g openvpn -c OpenVPN -d /etc/openvpn -s /sbin/nologin -r openvpn || $Error
+  groupadd -g 65405 clam || $Error
+  useradd -u 65405 -g clam -c "Clam Anti Virus Checker" -d /var/lib/clamav -s /sbin/nologin -r clam || $Error
+  groupadd -g 65406 clam-update || $Error
+  useradd -u 65406 -g clam-update -c "clamav-unofficial-sigs user account" -d /var/lib/clamav-unofficial-sigs -r clam-update || $Error
+  #groupadd -g 65407 clamsmtp || $Error
+  useradd -u 65407 -g mail -c "User to own clamsmtp directories and default processes" -d /var/lib/clamd.clamsmtp -s /sbin/nologin -r clamsmtp || $Error
+  groupadd -g 65408 memcached || $Error
+  useradd -u 65408 -g memcached -c "Memcached daemon" -d /var/run/memcached -s /sbin/nologin -r memcached || $Error
+  groupadd -g 65409 redis || $Error
+  useradd -u 65409 -g redis -c "Redis Server" -d /var/lib/redis -s /sbin/nologin -r redis || $Error
+  groupadd -g 65410 logcheck || $Error
+  useradd -u 65410 -g logcheck -c "Logcheck user" -d /var/lib/logcheck -s /sbin/nologin -r logcheck || $Error
+  groupadd -g 65411 ntop || $Error
+  useradd -u 65411 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
+  groupadd -g 65412 cgred || $Error
+  groupadd -g 65413 ecryptfs || $Error
+  groupadd -g 65414 rsshusers || $Error
+
   groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
-  useradd -g $MY_SL_ADMIN -G wheel -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
+  useradd -g $MY_SL_ADMIN -G wheel,munin -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
   echo $MY_SL_ADMIN_INIT_PW | passwd --stdin $MY_SL_ADMIN || $Error
   chage -d 0 $MY_SL_ADMIN || $Error
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
@@ -248,14 +275,10 @@ EOF
 [ "$PS1" ] && exec /usr/local/bin/operation_logger
 EOF
   cat << 'EOF' | tee -a /root/.bash_profile || $Error
-if [ "$PS1" ]; then
-  PS1='[\u@\[\e[1;41m\]\H\[\e[0m\] \t \w] \n\$ '
-  alias dstat='dstat -Tclmdrn'
-fi
+[ "$PS1" ] && exec /usr/local/bin/operation_logger
 EOF
   if [ MY_COLOR != "1;41m" ]; then
     sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
-    sed -i -e "s/1;41m/$MY_COLOR/" /root/.bash_profile || $Error
   fi
 fi
 
@@ -1290,33 +1313,6 @@ exit $RETVAL
 EOF
 chmod 755 /etc/init.d/stoned || $Error
 
-sed -i -e 's%^saslauth:.*$%saslauth:x:76:76:"Saslauthd user":/var/empty/saslauth:/sbin/nologin%' /etc/passwd || $Error
-groupadd -g 65401 haclient || $Error
-useradd -u 65401 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
-groupadd -g 65402 munin || $Error
-useradd -u 65402 -g munin -c "Munin user" -d /var/lib/munin -s /sbin/nologin -r munin || $Error
-groupadd -g 65403 vnstat || $Error
-useradd -u 65403 -g vnstat -c "vnStat user" -d /var/lib/vnstat -s /sbin/nologin -r vnstat || $Error
-groupadd -g 65404 openvpn || $Error
-useradd -u 65404 -g openvpn -c OpenVPN -d /etc/openvpn -s /sbin/nologin -r openvpn || $Error
-groupadd -g 65405 clam || $Error
-useradd -u 65405 -g clam -c "Clam Anti Virus Checker" -d /var/lib/clamav -s /sbin/nologin -r clam || $Error
-groupadd -g 65406 clam-update || $Error
-useradd -u 65406 -g clam-update -c "clamav-unofficial-sigs user account" -d /var/lib/clamav-unofficial-sigs -r clam-update || $Error
-#groupadd -g 65407 clamsmtp || $Error
-useradd -u 65407 -g mail -c "User to own clamsmtp directories and default processes" -d /var/lib/clamd.clamsmtp -s /sbin/nologin -r clamsmtp || $Error
-groupadd -g 65408 memcached || $Error
-useradd -u 65408 -g memcached -c "Memcached daemon" -d /var/run/memcached -s /sbin/nologin -r memcached || $Error
-groupadd -g 65409 redis || $Error
-useradd -u 65409 -g redis -c "Redis Server" -d /var/lib/redis -s /sbin/nologin -r redis || $Error
-groupadd -g 65410 logcheck || $Error
-useradd -u 65410 -g logcheck -c "Logcheck user" -d /var/lib/logcheck -s /sbin/nologin -r logcheck || $Error
-groupadd -g 65411 ntop || $Error
-useradd -u 65411 -g ntop -c ntop -d /var/lib/ntop -s /sbin/nologin -r ntop || $Error
-groupadd -g 65412 cgred || $Error
-groupadd -g 65413 ecryptfs || $Error
-groupadd -g 65414 rsshusers || $Error
-
 yum -y --enablerepo=epel,pgdg93 install \
  aide \
  apachetop \
@@ -1366,6 +1362,7 @@ yum -y --enablerepo=epel,pgdg93 install \
  ftop \
  ftp \
  gdb \
+ gnutls-utils \
  haproxy \
  hardlink \
  hatools \
@@ -1401,7 +1398,6 @@ yum -y --enablerepo=epel,pgdg93 install \
  lsyncd \
  ltrace \
  man-pages-ja \
- memcached \
  mon \
  monit \
  munin \
@@ -1443,7 +1439,6 @@ yum -y --enablerepo=epel,pgdg93 install \
  PyMunin \
  python-setuptools \
  redhat-rpm-config \
- redis \
  repoview \
  rlwrap \
  rootsh \
@@ -1454,7 +1449,7 @@ yum -y --enablerepo=epel,pgdg93 install \
  rpmreaper \
  rpmrebuild \
  rssh \
- samba4\* \
+ rsyslog-gnutls \
  schroot \
  scl-utils-build \
  screen \
@@ -1494,6 +1489,10 @@ yum -y --enablerepo=epel,pgdg93 install \
  xfsdump \
  xfsprogs-qa-devel \
  || $Error
+
+# memcached \
+# redis \
+# samba4\* \
 
 #yum -y install \
 # httpd24* \
@@ -1655,6 +1654,14 @@ $SystemLogRateLimitInterval 0
 $MaxMessageSize 1048576
 $ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
 #$ActionFileEnableSync on
+
+#$WorkDirectory /var/lib/rsyslog
+#$ActionQueueFileName fwdRule1
+#$ActionQueueMaxDiskSpace 1g
+#$ActionQueueSaveOnShutdown on
+#$ActionQueueType LinkedList
+#$ActionResumeRetryCount -1
+
 $IncludeConfig /etc/rsyslog.d/*.conf
 
 $template DynamicFileName0,"/var/log/all/operation/%programname:::secpath-replace%.log"
@@ -1664,35 +1671,55 @@ $template DynamicFileName2,"/var/log/all/%$year%%$month%%$day%/all.log"
 local0.*                                                ?DynamicFileName0
 *.*;local0.none                                         ?DynamicFileName1
 *.*;local0.none                                         ?DynamicFileName2
-:fromhost-ip, !isequal, "127.0.0.1"                     /dev/null
+
+:fromhost-ip, !isequal, "127.0.0.1" ~
+#*.info @@remote-host1:514
+#*.info @@remote-host2:514
+
+if $syslogfacility-text == "kern" and $syslogseverity-text == 'debug' and $msg contains 'ip_tables: ' then /var/log/ip_tables.log
 & ~
-
-#kern.*                                                 /dev/console
-*.info;mail.none;authpriv.none;cron.none;local0.none;local1.none;local2.none;local3.none;local4.none;local5.none;local6.none /var/log/messages
-
-mail.*                                                  -/var/log/maillog
-authpriv.*                                              /var/log/secure
-cron.*                                                  /var/log/cron
-local1.*                                                /var/log/local1.log
-local2.*                                                /var/log/local2.log
-local3.*                                                /var/log/local3.log
-local4.*                                                /var/log/local4.log
-local5.*                                                /var/log/local5.log
-local6.*                                                /var/log/local6.log
-local7.*                                                /var/log/boot.log
-uucp,news.crit                                          /var/log/spooler
 
 *.emerg                                                 *
 
-#$WorkDirectory /var/lib/rsyslog
-#$ActionQueueFileName fwdRule1
-#$ActionQueueMaxDiskSpace 1g
-#$ActionQueueSaveOnShutdown on
-#$ActionQueueType LinkedList
-#$ActionResumeRetryCount -1
-#*.* @@remote-host:514
-#*.* @@remote-host:514
+#kern.*                                                 /dev/console
+
+mail.*                                                  -/var/log/maillog
+& ~
+authpriv.*                                              /var/log/secure
+& ~
+cron.*                                                  /var/log/cron
+& ~
+#local0.*                                                /var/log/operation.log
+#& ~
+local0.* ~
+local1.*                                                /var/log/local1.log
+& ~
+local2.*                                                /var/log/local2.log
+& ~
+local3.*                                                /var/log/local3.log
+& ~
+local4.*                                                /var/log/local4.log
+& ~
+local5.*                                                /var/log/local5.log
+& ~
+local6.*                                                /var/log/local6.log
+& ~
+local7.*                                                /var/log/boot.log
+& ~
+uucp,news.crit                                          /var/log/spooler
+& ~
+
+*.info                                                  /var/log/messages
 EOF
+
+#local0: operation.log
+#local1: 
+#local2: 
+#local3: 
+#local4: ipmievd
+#local5: 
+#local6: 
+#local7: boot.log
 
 cat << 'EOF' | tee /etc/cron.d/rsyslog-delete || $Error
 SHELL=/bin/bash
@@ -1706,6 +1733,9 @@ cat << 'EOF' | tee /etc/logrotate.d/syslog
 /var/log/cron
 /var/log/maillog
 /var/log/messages
+/var/log/ip_tables.log
+/var/log/operation.log
+/var/log/local0.log
 /var/log/local1.log
 /var/log/local2.log
 /var/log/local3.log
@@ -1714,6 +1744,7 @@ cat << 'EOF' | tee /etc/logrotate.d/syslog
 /var/log/local6.log
 /var/log/secure
 /var/log/spooler
+/var/log/haproxy.log
 {
     sharedscripts
     postrotate
@@ -1725,22 +1756,152 @@ EOF
 cat << 'EOF' | tee /etc/logrotate.conf
 daily
 rotate 365
-create
+create 0640 root wheel
 dateext
 #compress
+#delaycompress
+notifempty
 missingok
 include /etc/logrotate.d
 /var/log/wtmp {
-    monthly
-    create 0664 root utmp
-        minsize 1M
-    rotate 1
+  monthly
+  create 0664 root utmp
+  minsize 1M
+  rotate 1
 }
 /var/log/btmp {
-    missingok
-    monthly
-    create 0600 root utmp
-    rotate 1
+  missingok
+  monthly
+  create 0600 root utmp
+  rotate 1
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/aide
+/var/log/aide/*.log {
+  copytruncate
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/dracut
+/var/log/dracut.log {
+  create 0600 root root
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/fail2ban
+/var/log/fail2ban.log {
+  postrotate
+    /usr/bin/fail2ban-client flushlogs 1>/dev/null || true
+  endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/haproxy
+
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/httpd24-httpd
+/var/log/httpd24/*log {
+  sharedscripts
+  postrotate
+    /sbin/service httpd24-httpd reload > /dev/null 2>/dev/null || true
+  endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/iptraf
+/var/log/iptraf/*.log {
+  create 0600 root root
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/iscsiuiolog
+/var/log/iscsiuio.log {
+  sharedscripts
+  postrotate
+    pkill -USR1 iscsiuio 2> /dev/null || true
+  endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/lsyncd
+/var/log/lsyncd/*log {
+  sharedscripts
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/monit
+/var/log/monit {
+  create 0644 root root
+  postrotate
+    /sbin/service monit condrestart > /dev/null 2>&1 || :
+  endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/numad
+/var/log/numad.log {
+  copytruncate
+  maxage 60
+  size 1M
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/psacct
+/var/account/pacct {
+#prerotate loses accounting records, let's no
+#  prerotate
+#    /usr/sbin/accton
+#  endscript
+  create 0600 root root
+  postrotate
+    /usr/sbin/accton /var/account/pacct
+  endscript
+}
+EOF
+
+#cat << 'EOF' | tee /etc/logrotate.d/redis
+#/var/log/redis/redis.log {
+#  copytruncate
+#}
+#EOF
+
+#cat << 'EOF' | tee /etc/logrotate.d/samba
+#/var/log/samba/* {
+#  olddir /var/log/samba/old
+#  copytruncate
+#}
+#EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/squid
+/var/log/squid/*.log {
+  sharedscripts
+  postrotate
+    # Asks squid to reopen its logs. (log_rotate 0 is set in squid.conf)
+    # errors redirected to make it silent if squid is not running
+    /usr/sbin/squid -k rotate 2>/dev/null
+    # Wait a little to allow Squid to catch up before the logs is compressed
+    sleep 1
+  endscript
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/squidGuard
+/var/log/squid/squidGuard.log {
+  missingok
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/stap-server
+/var/log/stap-server/log {
+  create 0664 stap-server stap-server
+}
+EOF
+
+cat << 'EOF' | tee /etc/logrotate.d/yum
+/var/log/yum.log {
+  create 0600 root root
 }
 EOF
 
@@ -1860,18 +2021,13 @@ ntop --set-admin-password=$MY_NTOP_PW || $Error
 pkill ntop || :
 
 #if ! grep /var/log/ntop /etc/rsyslog.conf; then
-#  sed -i -e 's%^.* /var/log/messages$%*.info;mail.none;authpriv.none;cron.none;local1.none    /var/log/messages%' -e '/\/var\/log\/messages$/a local1.*                                                /var/log/ntop' /etc/rsyslog.conf || $Error
+#  sed -i -e 's%/var/log/local1.log%/var/log/ntop%' /etc/rsyslog.conf || $Error
+#  mv /var/log/local1.log /var/log/ntop 2> /dev/null || :
 #  /etc/init.d/rsyslog restart || $Error
 #fi
 
 cat << 'EOF' | tee /etc/logrotate.d/ntop || $Error
 /var/log/ntop.access {
-  daily
-  rotate 366
-  compress
-  ifempty
-  create 0640 root wheel
-  missingok
   postrotate
     /etc/init.d/ntop reload >/dev/null 2>&1
   endscript
@@ -1945,6 +2101,34 @@ do
   echo $i/
   munin-node-configure --libdir $i/ --suggest | grep -v ^Plugin | grep -v ^------
 done
+
+cat << 'EOF' | tee /etc/logrotate.d/munin
+/var/log/munin/munin-update.log {
+  create 640 munin munin
+  #su munin munin
+}
+
+/var/log/munin/munin-graph.log {
+  create 640 munin munin
+  #su munin munin
+}
+
+/var/log/munin/munin-html.log {
+  create 640 munin munin
+  #su munin munin
+}
+
+/var/log/munin/munin-limits.log {
+  create 640 munin munin
+  #su munin munin
+}
+EOF
+cat << 'EOF' | tee /etc/logrotate.d/munin-node
+/var/log/munin-node/munin-node.log {
+  copytruncate
+  #su root root
+}
+EOF
 
 cat /etc/sysconfig/sysstat || $Error
 sed -i -e 's/^HISTORY=.*$/HISTORY=366/' /etc/sysconfig/sysstat || $Error
@@ -2388,7 +2572,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p tcp --dport 3001  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p tcp --dport 3003  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "IPTABLES_REJECT_PRIVATE : " --log-level=info
+#-A INPUT -j LOG --log-prefix "ip_tables: " --log-level=debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
@@ -2491,25 +2675,8 @@ fi
 cat << 'EOF' | tee /etc/logrotate.d/heartbeat
 
 EOF
-cat << 'EOF' | tee /etc/logrotate.d/syslog
-/var/log/cron
-/var/log/maillog
-/var/log/messages
-/var/log/local1.log
-/var/log/ha-log
-/var/log/local3.log
-/var/log/local4.log
-/var/log/local5.log
-/var/log/local6.log
-/var/log/secure
-/var/log/spooler
-{
-    sharedscripts
-    postrotate
-        /bin/kill -HUP `cat /var/run/syslogd.pid 2> /dev/null` 2> /dev/null || true
-    endscript
-}
-EOF
+
+sed -i -e 's%/var/log/local2.log%/var/log/ha-log%' /etc/logrotate.d/syslog
 
 cat << 'EOF' | tee /etc/ha.d/authkeys
 auth 1
