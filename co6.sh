@@ -1676,9 +1676,6 @@ local0.*                                                ?DynamicFileName0
 #*.info @@remote-host1:514
 #*.info @@remote-host2:514
 
-if $syslogfacility-text == "kern" and $syslogseverity-text == 'debug' and $msg contains 'ip_tables: ' then /var/log/ip_tables.log
-& ~
-
 *.emerg                                                 *
 
 #kern.*                                                 /dev/console
@@ -2088,19 +2085,19 @@ cd /usr/local/share/munin || $Error
 git clone https://github.com/munin-monitoring/contrib.git || $Error
 cd || $Error
 
-echo; \
-echo --------------------------------------------------------------------------------; \
-echo /usr/share/munin/plugins/; \
-munin-node-configure --suggest; \
-j=$(for j in /usr/local/share/munin/contrib/plugins/* /usr/local/share/munin/contrib/plugins/*/* /usr/local/share/munin/contrib/plugins/*/*/*; do echo $j; done | sort); \
-for i in $j
-do
-  [ -d $i ] || continue
-  echo
-  echo --------------------------------------------------------------------------------
-  echo $i/
-  munin-node-configure --libdir $i/ --suggest | grep -v ^Plugin | grep -v ^------
-done
+#echo; \
+#echo --------------------------------------------------------------------------------; \
+#echo /usr/share/munin/plugins/; \
+#munin-node-configure --suggest; \
+#j=$(for j in /usr/local/share/munin/contrib/plugins/* /usr/local/share/munin/contrib/plugins/*/* /usr/local/share/munin/contrib/plugins/*/*/* /usr/local/share/munin/contrib/plugins/*/*/*/* /usr/local/share/munin/contrib/plugins/*/*/*/*/*; do echo $j; done | sort); \
+#for i in $j
+#do
+#  [ -d $i ] || continue
+#  echo
+#  echo --------------------------------------------------------------------------------
+#  echo $i/
+#  munin-node-configure --libdir $i/ --suggest | grep -v ^Plugin | grep -v ^------
+#done
 
 cat << 'EOF' | tee /etc/logrotate.d/munin
 /var/log/munin/munin-update.log {
