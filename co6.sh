@@ -131,7 +131,7 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -p tcp  --dport 3001 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p tcp  --dport 3003 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p icmp                                          -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "ip_tables: " --log-level=debug
+#-A INPUT -j LOG --log-prefix "iptables: " --log-level=debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
@@ -1676,6 +1676,9 @@ local0.*                                                ?DynamicFileName0
 #*.info @@remote-host1:514
 #*.info @@remote-host2:514
 
+if $syslogfacility-text == 'kern' and $msg contains 'iptables: ' then /var/log/iptables.log
+& ~
+
 *.emerg                                                 *
 
 #kern.*                                                 /dev/console
@@ -1730,7 +1733,7 @@ cat << 'EOF' | tee /etc/logrotate.d/syslog
 /var/log/cron
 /var/log/maillog
 /var/log/messages
-/var/log/ip_tables.log
+/var/log/iptables.log
 /var/log/operation.log
 /var/log/local0.log
 /var/log/local1.log
@@ -2569,7 +2572,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p tcp --dport 3001  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p tcp --dport 3003  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "ip_tables: " --log-level=debug
+#-A INPUT -j LOG --log-prefix "iptables: " --log-level=debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
