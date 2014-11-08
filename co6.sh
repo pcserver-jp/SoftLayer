@@ -1361,6 +1361,7 @@ yum -y --enablerepo=epel,pgdg93 install \
  fping \
  ftop \
  ftp \
+ gcc-c++ \
  gdb \
  gnutls-utils \
  haproxy \
