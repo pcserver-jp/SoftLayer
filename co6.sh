@@ -8,7 +8,7 @@ MY_SL_ADMIN_INIT_PW=sl-admin
 MY_SL_ADMIN_ID=65501
 WHEEL_SUDO_NOPASSWD=yes
 MY_NTOP_PW=$(dd if=/dev/urandom bs=1 count=6 2> /dev/null | base64)
-CENTOS_VER=6.5
+CENTOS_VER=6.6
 
 #DEV_COLOR="1;42m"
 #STG_COLOR="5;43m"
@@ -101,6 +101,7 @@ case "$MY_DC" in
   "lon01" ) MY_DC=lon02;;
   "lon02" ) :;;
   "mel01" ) :;;
+  "par01" ) :;;
   "sea01" ) :;;
   "sjc01" ) :;;
   "sng01" ) :;;
@@ -153,6 +154,7 @@ case $MY_DC in
   "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' /etc/sysconfig/iptables || $Error;;
   "lon02" ) sed -i -e 's/119\.81\.138/5.10.118/'    /etc/sysconfig/iptables || $Error;;
   "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'   /etc/sysconfig/iptables || $Error;;
+  "par01" ) sed -i -e 's/119\.81\.138/159.8.118/'   /etc/sysconfig/iptables || $Error;;
   "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  /etc/sysconfig/iptables || $Error;;
   "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   /etc/sysconfig/iptables || $Error;;
   "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' /etc/sysconfig/iptables || $Error;;
@@ -236,6 +238,8 @@ chmod 755 /usr/local/bin/operation_logger || $Error
 
 if ! id $MY_SL_ADMIN; then
   sed -i -e 's%^saslauth:.*$%saslauth:x:76:76:"Saslauthd user":/var/empty/saslauth:/sbin/nologin%' /etc/passwd || $Error
+  groupadd -g 17 stoned || $Error
+  useradd -u 17 -g stoned -c "Stone Daemon" -d / -s /sbin/nologin -r stoned || $Error
   groupadd -g 65401 haclient || $Error
   useradd -u 65401 -g haclient -c "cluster user" -d /var/lib/heartbeat/cores/hacluster -s /sbin/nologin -r hacluster || $Error
   groupadd -g 65402 munin || $Error
@@ -262,24 +266,21 @@ if ! id $MY_SL_ADMIN; then
   groupadd -g 65413 ecryptfs || $Error
   groupadd -g 65414 rsshusers || $Error
 
+  if [ MY_COLOR != "1;41m" ]; then
+    sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
+  fi
+  cat << 'EOF' | tee -a /root/.bash_profile || $Error
+[ "$PS1" ] && exec /usr/local/bin/operation_logger
+EOF
+  cat << 'EOF' | tee -a /etc/skel/.bash_profile || $Error
+[ "$PS1" ] && exec /usr/local/bin/operation_logger
+EOF
   groupadd -g $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
   useradd -g $MY_SL_ADMIN -G wheel,munin -u $MY_SL_ADMIN_ID $MY_SL_ADMIN || $Error
   echo $MY_SL_ADMIN_INIT_PW | passwd --stdin $MY_SL_ADMIN || $Error
   chage -d 0 $MY_SL_ADMIN || $Error
   cp -a /root/.ssh /home/$MY_SL_ADMIN/ || $Error
   chown -R $MY_SL_ADMIN:$MY_SL_ADMIN /home/$MY_SL_ADMIN/.ssh || $Error
-  cat << 'EOF' | tee -a /home/$MY_SL_ADMIN/.bash_profile || $Error
-[ "$PS1" ] && exec /usr/local/bin/operation_logger
-EOF
-  cat << 'EOF' | tee -a /etc/skel/.bash_profile || $Error
-[ "$PS1" ] && exec /usr/local/bin/operation_logger
-EOF
-  cat << 'EOF' | tee -a /root/.bash_profile || $Error
-[ "$PS1" ] && exec /usr/local/bin/operation_logger
-EOF
-  if [ MY_COLOR != "1;41m" ]; then
-    sed -i -e "s/1;41m/$MY_COLOR/" /usr/local/bin/operation_logger || $Error
-  fi
 fi
 
 ifconfig || $Error
@@ -723,7 +724,7 @@ cat << 'EOF' | tee /rescue/reboot || $Error
 if [ -d /proc/xen/ ]; then
   sed -i -e 's/^\(default=.*\)$/##rescue##\1\ndefault='"$(($(cat /boot/grub/grub.conf | grep -v ^# | tr '\n' ',' | sed -e 's/title/\ntitle/g' | grep ^title | awk '/ rescue / {print NR}')-1))/" /boot/grub/grub.conf && reboot
 else
-  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="rescue repo=http://mirrors.service.networklayer.com/centos/6.5/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 biosdevname=0 nomodeset pcie_aspm=off $@" && reboot
+  kexec -l /boot/vmlinuz --initrd=/boot/initrd.img --command-line="rescue repo=http://mirrors.service.networklayer.com/centos/6.6/os/x86_64/ lang=en_US keymap=jp106 selinux=0 sshd=1 nomount ksdevice=eth0 ip=$(ifconfig $(ifconfig bond0 > /dev/null 2>&1 && echo bond0 || echo eth0) | grep inet | awk '{print $2}' | awk -F: '{print $2}') netmask=255.255.255.192 gateway=$(if route -n | grep -q '^10\.0\.0\.0'; then route -n | grep '^10\.0\.0\.0'; else route -n | grep '^0\.0\.0\.0'; fi | awk '{print $2}') dns=$(grep ^nameserver /etc/resolv.conf | head -1 | awk '{print $2}') mtu=9000 biosdevname=0 nomodeset pcie_aspm=off $@" && reboot
 fi
 EOF
 chmod 755 /rescue/reboot || $Error
@@ -817,7 +818,7 @@ name=CentOS-6 - Extras
 baseurl=http://mirrors.service.networklayer.com/centos/6/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [centosplus]
 name=CentOS-6 - Plus
@@ -844,16 +845,9 @@ gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 EOF
   cat /etc/yum.repos.d/CentOS-Vault.repo || $Error
   cat << 'EOF' | tee /etc/yum.repos.d/CentOS-Vault.repo || $Error
-# CentOS-Vault.repo
-#
-# CentOS Vault holds packages from previous releases within the same CentOS Version
-# these are packages obsoleted by the current release and should usually not
-# be used in production
-#-----------------
-
 [C6.0-base]
 name=CentOS-6.0 - Base
-baseurl=http://vault.centos.org/6.0/os/$basearch/
+baseurl=http://vault.centos.org/6.0/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -861,7 +855,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.0-updates]
 name=CentOS-6.0 - Updates
-baseurl=http://vault.centos.org/6.0/updates/$basearch/
+baseurl=http://vault.centos.org/6.0/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -869,22 +863,22 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.0-extras]
 name=CentOS-6.0 - Extras
-baseurl=http://vault.centos.org/6.0/extras/$basearch/
+baseurl=http://vault.centos.org/6.0/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [C6.0-contrib]
 name=CentOS-6.0 - Contrib
-baseurl=http://vault.centos.org/6.0/contrib/$basearch/
+baseurl=http://vault.centos.org/6.0/contrib/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.0-centosplus]
 name=CentOS-6.0 - CentOSPlus
-baseurl=http://vault.centos.org/6.0/centosplus/$basearch/
+baseurl=http://vault.centos.org/6.0/centosplus/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -892,7 +886,7 @@ enabled=0
 
 [C6.1-base]
 name=CentOS-6.1 - Base
-baseurl=http://vault.centos.org/6.1/os/$basearch/
+baseurl=http://vault.centos.org/6.1/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -900,7 +894,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.1-updates]
 name=CentOS-6.1 - Updates
-baseurl=http://vault.centos.org/6.1/updates/$basearch/
+baseurl=http://vault.centos.org/6.1/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -908,22 +902,22 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.1-extras]
 name=CentOS-6.1 - Extras
-baseurl=http://vault.centos.org/6.1/extras/$basearch/
+baseurl=http://vault.centos.org/6.1/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [C6.1-contrib]
 name=CentOS-6.1 - Contrib
-baseurl=http://vault.centos.org/6.1/contrib/$basearch/
+baseurl=http://vault.centos.org/6.1/contrib/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.1-centosplus]
 name=CentOS-6.1 - CentOSPlus
-baseurl=http://vault.centos.org/6.1/centosplus/$basearch/
+baseurl=http://vault.centos.org/6.1/centosplus/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -931,7 +925,7 @@ enabled=0
 
 [C6.2-base]
 name=CentOS-6.2 - Base
-baseurl=http://vault.centos.org/6.2/os/$basearch/
+baseurl=http://vault.centos.org/6.2/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -939,7 +933,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.2-updates]
 name=CentOS-6.2 - Updates
-baseurl=http://vault.centos.org/6.2/updates/$basearch/
+baseurl=http://vault.centos.org/6.2/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -947,22 +941,22 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.2-extras]
 name=CentOS-6.2 - Extras
-baseurl=http://vault.centos.org/6.2/extras/$basearch/
+baseurl=http://vault.centos.org/6.2/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [C6.2-contrib]
 name=CentOS-6.2 - Contrib
-baseurl=http://vault.centos.org/6.2/contrib/$basearch/
+baseurl=http://vault.centos.org/6.2/contrib/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.2-centosplus]
 name=CentOS-6.2 - CentOSPlus
-baseurl=http://vault.centos.org/6.2/centosplus/$basearch/
+baseurl=http://vault.centos.org/6.2/centosplus/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -970,7 +964,7 @@ enabled=0
 
 [C6.3-base]
 name=CentOS-6.3 - Base
-baseurl=http://vault.centos.org/6.3/os/$basearch/
+baseurl=http://vault.centos.org/6.3/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -978,7 +972,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.3-updates]
 name=CentOS-6.3 - Updates
-baseurl=http://vault.centos.org/6.3/updates/$basearch/
+baseurl=http://vault.centos.org/6.3/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -986,22 +980,22 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.3-extras]
 name=CentOS-6.3 - Extras
-baseurl=http://vault.centos.org/6.3/extras/$basearch/
+baseurl=http://vault.centos.org/6.3/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [C6.3-contrib]
 name=CentOS-6.3 - Contrib
-baseurl=http://vault.centos.org/6.3/contrib/$basearch/
+baseurl=http://vault.centos.org/6.3/contrib/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.3-centosplus]
 name=CentOS-6.3 - CentOSPlus
-baseurl=http://vault.centos.org/6.3/centosplus/$basearch/
+baseurl=http://vault.centos.org/6.3/centosplus/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -1009,7 +1003,7 @@ enabled=0
 
 [C6.4-base]
 name=CentOS-6.4 - Base
-baseurl=http://vault.centos.org/6.4/os/$basearch/
+baseurl=http://vault.centos.org/6.4/os/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -1017,7 +1011,7 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.4-updates]
 name=CentOS-6.4 - Updates
-baseurl=http://vault.centos.org/6.4/updates/$basearch/
+baseurl=http://vault.centos.org/6.4/updates/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -1025,22 +1019,61 @@ exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* p
 
 [C6.4-extras]
 name=CentOS-6.4 - Extras
-baseurl=http://vault.centos.org/6.4/extras/$basearch/
+baseurl=http://vault.centos.org/6.4/extras/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
-exclude=centos-release centos-release-SCL centos-release-cr centos-release-xen 
+exclude=centos-release-*
 
 [C6.4-contrib]
 name=CentOS-6.4 - Contrib
-baseurl=http://vault.centos.org/6.4/contrib/$basearch/
+baseurl=http://vault.centos.org/6.4/contrib/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
 
 [C6.4-centosplus]
 name=CentOS-6.4 - CentOSPlus
-baseurl=http://vault.centos.org/6.4/centosplus/$basearch/
+baseurl=http://vault.centos.org/6.4/centosplus/x86_64/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+enabled=0
+#-----------------
+
+[C6.5-base]
+name=CentOS-6.5 - Base
+baseurl=http://vault.centos.org/6.5/os/x86_64/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.5-updates]
+name=CentOS-6.5 - Updates
+baseurl=http://vault.centos.org/6.5/updates/x86_64/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=centos-release cluster-glue* corosync* heartbeat* ldirectord libesmtp* pacemaker* resource-agents* drbd* libevent*
+
+[C6.5-extras]
+name=CentOS-6.5 - Extras
+baseurl=http://vault.centos.org/6.5/extras/x86_64/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+enabled=0
+exclude=centos-release-*
+
+[C6.5-contrib]
+name=CentOS-6.5 - Contrib
+baseurl=http://vault.centos.org/6.5/contrib/x86_64/
+gpgcheck=1
+gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
+enabled=0
+
+[C6.5-centosplus]
+name=CentOS-6.5 - CentOSPlus
+baseurl=http://vault.centos.org/6.5/centosplus/x86_64/
 gpgcheck=1
 gpgkey=http://mirrors.service.networklayer.com/centos/RPM-GPG-KEY-CentOS-6
 enabled=0
@@ -1131,7 +1164,7 @@ mirrorlist = http://mirrorlist.repoforge.org/el6/mirrors-rpmforge
 enabled = 0
 gpgkey = http://apt.sw.be/RPM-GPG-KEY.dag.txt
 gpgcheck = 1
-includepkgs=lv
+includepkgs=lv sslh
 EOF
 
 cat << 'EOF' | sudo tee /etc/yum.repos.d/zabbix.repo || $Error
@@ -1226,8 +1259,6 @@ openssl req -new -outform pem -out /etc/pki/tls/certs/stone.pem -newkey rsa:1024
 cat stone.key | tee -a /etc/pki/tls/certs/stone.pem > /dev/null || $Error
 chmod 400 /etc/pki/tls/certs/stone.pem || $Error
 rm -f stone.key || $Error
-groupadd -g 17 stoned || $Error
-useradd -u 17 -g stoned -c "Stone Daemon" -d / -s /sbin/nologin -r stoned || $Error
 mkdir -p /var/chroot/stoned || $Error
 cat << 'EOF' | tee /etc/stoned.conf || $Error
 localhost:22 443/ssl
@@ -1259,20 +1290,18 @@ cat << 'EOF' | tee /etc/init.d/stoned || $Error
 # source function library.
 . /etc/init.d/functions
 
-RETVAL=0
-prog="stone"
+: ${prog:=stone}
 lockfile=/var/lock/subsys/$prog
-STONE_BIN="/usr/bin/stone"
+STONE_BIN="/usr/bin/$prog"
 STONE_CONF="/etc/${prog}d.conf"
-STONE_CHROOT=/var/chroot/${prog}d
-STONE_OPTS="-l -C $STONE_CONF -o stoned -g stoned -t $STONE_CHROOT"
 PIDFILE=/var/run/${prog}.pid
+RETVAL=0
 
 start()
 {
   [ "$EUID" != "0" ] && exit 4
   echo -n $"Starting $prog: "
-  daemon $STONE_BIN $STONE_OPTS -D -i $PIDFILE
+  daemon $STONE_BIN -D -l -o stoned -g stoned -t /var/chroot/stoned -i $PIDFILE -C $STONE_CONF
   RETVAL=$?
   echo
   [ $RETVAL -eq 0 ] && touch $lockfile
@@ -1628,7 +1657,7 @@ yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
 #EOF
 #yum -y install --enablerepo=epel,pgdg93,home_viliampucik_rhel powa_93 powa_93-ui || $Error
 
-yum -y --enablerepo=rpmforge install lv || $Error
+yum -y --enablerepo=rpmforge install lv sslh || $Error
 
 yum -y --disablerepo=\* --enablerepo=elrepo install drbd84-utils kmod-drbd84 || $Error
 
@@ -2716,7 +2745,7 @@ primitive p_drbd_r0 ocf:linbit:drbd \\
   op promote interval="0" timeout="90s" \\
   op demote  interval="0" timeout="90s"
 primitive p_vipcheck ocf:heartbeat:VIPcheck \\
-  params target_ip="$HA_VIP" count="1" wait="10"  \\
+  params target_ip="$HA_VIP" count="1" wait="10" \\
   op start interval="0" timeout="90s" start_delay="4s" \\
   op stop  interval="0" timeout="60s"
 primitive $P_VIP ocf:heartbeat:IPaddr2 \\
@@ -2849,7 +2878,7 @@ if [ "$INIT_MODE" = "MASTER" ]; then
 install
 text
 reboot
-nfs --server=$HA_VIP --dir=/backup/co6.5
+nfs --server=$HA_VIP --dir=/backup/co6.6
 lang en_US.UTF-8
 keyboard jp106
 timezone --utc Asia/Tokyo
