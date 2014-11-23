@@ -1344,30 +1344,48 @@ chmod 755 /etc/init.d/stoned || $Error
 
 yum -y --enablerepo=epel,pgdg93 install \
  aide \
+ alsa-plugins-pulseaudio \
  apachetop \
+ apr \
+ apr-util \
+ apr-util-ldap \
  arp-scan \
  arptables_jf \
  arpwatch \
+ at-spi \
  atop \
+ autoconf \
+ automake \
  autossh \
  bash-completion \
+ bison \
  bonnie++ \
  btrfs-progs \
+ byacc \
  cachefilesd \
  chkrootkit \
  colordiff \
  colorize \
+ compat-libcap1 \
  compat-libevent14 \
  compat-libevent14-devel \
+ compat-libstdc++-33 \
  conntrack-tools \
+ control-center \
+ control-center-extra \
  cpuid \
  createrepo \
+ crypto-utils \
+ cscope \
  ctags-etags \
  daemonize \
+ db4-cxx \
+ db4-devel \
  dd_rescue \
  device-mapper-multipath \
  dhcping \
  dialog \
+ diffstat \
  disktype \
  dkms \
  dnsmasq \
@@ -1375,40 +1393,77 @@ yum -y --enablerepo=epel,pgdg93 install \
  dnstop \
  dnstracer \
  dos2unix \
+ doxygen \
  dropwatch \
  dstat \
  dump \
  dwatch \
  ecryptfs-utils \
  elinks \
+ eog \
  ethstatus \
  expect \
  fail2ban \
  fakechroot \
  fakeroot \
  fio \
+ firefox \
+ firstboot \
+ flex \
  fping \
  ftop \
  ftp \
  gcc-c++ \
+ gcc-gfortran \
+ gd \
  gdb \
+ gdbm-devel \
+ gdm \
+ gdm-plugin-fingerprint \
+ gdm-user-switch-applet \
+ glibc-devel \
+ glibc-headers \
+ glx-utils \
+ gnome-applets \
+ gnome-media \
+ gnome-packagekit \
+ gnome-panel \
+ gnome-power-manager \
+ gnome-screensaver \
+ gnome-session \
+ gnome-terminal \
+ gnome-vfs2-smb \
+ gok \
  gnutls-utils \
+ gvfs-archive \
+ gvfs-fuse \
+ gvfs-smb \
  haproxy \
  hardlink \
  hatools \
  hddtemp \
  hping3 \
  htop \
+ httpd \
+ httpd-manual \
+ httpd-tools \
  httpd24 \
  httpd24-mod_ssl \
  ifstatus \
  iftop \
+ indent \
  innotop \
  inotify-tools \
+ intltool \
  ioping \
  ioprocess \
  iotop \
+ ipa-gothic-fonts \
+ ipa-mincho-fonts \
+ ipa-pgothic-fonts \
+ ipa-pmincho-fonts \
  iperf3 \
+ ipmitool \
  ipmiutil \
  ipset \
  iptraf \
@@ -1417,10 +1472,17 @@ yum -y --enablerepo=epel,pgdg93 install \
  ipwatchd \
  jq \
  keepalived \
+ kernel-headers \
+ ksh \
  latencytop-tui \
+ libaio \
+ libaio-devel \
  libevent \
+ libtool \
+ libXpm \
  livecd-tools \
  lm_sensors \
+ lm_sensors-libs \
  lm_sensors-sensord \
  logwatch \
  lrzsz \
@@ -1428,6 +1490,11 @@ yum -y --enablerepo=epel,pgdg93 install \
  lsyncd \
  ltrace \
  man-pages-ja \
+ mailcap \
+ metacity \
+ mod_perl \
+ mod_ssl \
+ mod_wsgi \
  mon \
  monit \
  munin \
@@ -1435,39 +1502,62 @@ yum -y --enablerepo=epel,pgdg93 install \
  munin-node \
  mx \
  mytop \
+ nautilus \
  nc \
  net-snmp \
  net-snmp-devel \
+ net-snmp-libs \
  net-snmp-utils \
  netstat-nat \
+ NetworkManager \
+ NetworkManager-gnome \
  nfsometer \
  nfs-utils \
  ngrep \
  nkf \
  nload \
  nmap \
+ notification-daemon \
  nscd \
+ nss_compat_ossl \
  ntfs-3g \
  ntfsprogs \
  ntop \
  numad \
  nwipe \
  omping \
+ OpenIPMI \
  OpenIPMI-libs \
+ openssh-askpass \
  openvpn \
  oprofile \
+ orca \
  p7zip \
+ patchutils \
  pbzip2 \
  perf \
  perl-Authen-SASL \
+ perl-BSD-Resource \
+ perl-DBI \
+ perl-devel \
+ perl-ExtUtils-MakeMaker \
+ perl-ExtUtils-ParseXS \
  perl-MIME-tools \
+ perl-libwww-perl \
+ perl-Newt \
+ perl-Test-Harness \
  pexpect \
  pipestat \
+ plymouth-system-theme \
+ polkit-gnome \
  powertop \
  pssh \
+ pulseaudio-module-gconf \
+ pulseaudio-module-x11 \
  pv \
  PyMunin \
  python-setuptools \
+ rcs \
  redhat-rpm-config \
  repoview \
  rlwrap \
@@ -1488,6 +1578,7 @@ yum -y --enablerepo=epel,pgdg93 install \
  sg3_utils-devel \
  slowhttptest \
  sockperf \
+ spice-vdagent \
  squashfs-tools \
  squid \
  squidGuard \
@@ -1498,6 +1589,7 @@ yum -y --enablerepo=epel,pgdg93 install \
  subnetcalc \
  subversion \
  swatch \
+ swig \
  sysbench \
  sysfsutils \
  syslinux \
@@ -1508,16 +1600,34 @@ yum -y --enablerepo=epel,pgdg93 install \
  tcping \
  tcptraceroute \
  telnet \
+ tigervnc-server \
  tftp \
  tree \
+ vino \
+ vlgothic-fonts \
+ vlgothic-p-fonts \
  unique \
  unix2dos \
  vnstat \
  w3m \
+ wacomexpresskeys \
  watchdog \
+ wdaemon \
+ webalizer \
  wipe \
+ xdg-user-dirs-gtk \
  xfsdump \
  xfsprogs-qa-devel \
+ xinetd \
+ xorg-x11-apps \
+ xorg-x11-drivers \
+ xorg-x11-server-Xorg \
+ xorg-x11-server-utils \
+ xorg-x11-utils \
+ xorg-x11-xinit \
+ xterm \
+ xvattr \
+ yelp \
  || $Error
 
 # memcached \
