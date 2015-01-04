@@ -96,18 +96,21 @@ case "$MY_DC" in
   "dal05" ) :;;
   "dal06" ) :;;
   "dal07" ) :;;
+  "dal09" ) :;;
+  "fra02" ) :;;
   "hkg02" ) :;;
   "hou02" ) :;;
-  "lon01" ) MY_DC=lon02;;
   "lon02" ) :;;
   "mel01" ) :;;
+  "mex01" ) :;;
   "par01" ) :;;
   "sea01" ) :;;
   "sjc01" ) :;;
   "sng01" ) :;;
+  "tok02" ) :;;
   "tor01" ) :;;
   "wdc01" ) :;;
-  * ) MY_DC=hkg02;;
+  * ) MY_DC=tok02;;
 esac || $Error
 mkdir -p /rescue || $Error
 echo $MY_DC | tee /rescue/datacenter || $Error
@@ -123,7 +126,7 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 -A INPUT -i lo -j ACCEPT
 ########## Public VLAN (& Private VLAN) ##########
--A INPUT -p icmp -s 119.81.138.0/23 -j ACCEPT
+-A INPUT -p icmp -s 161.202.118.0/23 -j ACCEPT
 -A INPUT -i eth1  -j DROP
 -A INPUT -i eth3  -j DROP
 -A INPUT -i bond1 -j DROP
@@ -132,7 +135,7 @@ cat << 'EOF' | tee /etc/sysconfig/iptables || $Error
 -A INPUT -p tcp  --dport 3001 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p tcp  --dport 3003 -m tcp -m state --state NEW -s 10.0.0.0/8 -j ACCEPT
 -A INPUT -p icmp                                          -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "iptables: " --log-level=debug
+#-A INPUT -j LOG --log-prefix "iptables: " --log-level debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
@@ -145,21 +148,25 @@ if ! ifconfig bond0 > /dev/null 2>&1; then
   sed -i -e '/eth3/  s/^/#/' /etc/sysconfig/iptables || $Error
 fi
 case $MY_DC in
-  "ams01" ) sed -i -e 's/119\.81\.138/159.253.158/' /etc/sysconfig/iptables || $Error;;
-  "dal01" ) sed -i -e 's/119\.81\.138/66.228.118/'  /etc/sysconfig/iptables || $Error;;
-  "dal05" ) sed -i -e 's/119\.81\.138/173.192.118/' /etc/sysconfig/iptables || $Error;;
-  "dal06" ) sed -i -e 's/119\.81\.138/184.172.118/' /etc/sysconfig/iptables || $Error;;
-  "dal07" ) sed -i -e 's/119\.81\.138/50.22.118/'   /etc/sysconfig/iptables || $Error;;
-# "hkg02" ) sed -i -e 's/119\.81\.138/119.81.138/'  /etc/sysconfig/iptables || $Error;;
-  "hou02" ) sed -i -e 's/119\.81\.138/173.193.118/' /etc/sysconfig/iptables || $Error;;
-  "lon02" ) sed -i -e 's/119\.81\.138/5.10.118/'    /etc/sysconfig/iptables || $Error;;
-  "mel01" ) sed -i -e 's/119\.81\.138/168.1.118/'   /etc/sysconfig/iptables || $Error;;
-  "par01" ) sed -i -e 's/119\.81\.138/159.8.118/'   /etc/sysconfig/iptables || $Error;;
-  "sea01" ) sed -i -e 's/119\.81\.138/67.228.118/'  /etc/sysconfig/iptables || $Error;;
-  "sjc01" ) sed -i -e 's/119\.81\.138/50.23.118/'   /etc/sysconfig/iptables || $Error;;
-  "sng01" ) sed -i -e 's/119\.81\.138/174.133.118/' /etc/sysconfig/iptables || $Error;;
-  "tor01" ) sed -i -e 's/119\.81\.138/158.85.118/'  /etc/sysconfig/iptables || $Error;;
-  "wdc01" ) sed -i -e 's/119\.81\.138/208.43.118/'  /etc/sysconfig/iptables || $Error;;
+  "ams01" ) sed -i -e 's/161\.202\.118/159.253.158/' /etc/sysconfig/iptables || $Error;;
+  "dal01" ) sed -i -e 's/161\.202\.118/66.228.118/'  /etc/sysconfig/iptables || $Error;;
+  "dal05" ) sed -i -e 's/161\.202\.118/173.192.118/' /etc/sysconfig/iptables || $Error;;
+  "dal06" ) sed -i -e 's/161\.202\.118/184.172.118/' /etc/sysconfig/iptables || $Error;;
+  "dal07" ) sed -i -e 's/161\.202\.118/50.22.118/'   /etc/sysconfig/iptables || $Error;;
+  "dal09" ) sed -i -e 's/161\.202\.118/198.23.118/'   /etc/sysconfig/iptables || $Error;;
+  "fra02" ) sed -i -e 's/161\.202\.118/159.122.118/'   /etc/sysconfig/iptables || $Error;;
+  "hkg02" ) sed -i -e 's/161\.202\.118/119.81.138/'  /etc/sysconfig/iptables || $Error;;
+  "hou02" ) sed -i -e 's/161\.202\.118/173.193.118/' /etc/sysconfig/iptables || $Error;;
+  "lon02" ) sed -i -e 's/161\.202\.118/5.10.118/'    /etc/sysconfig/iptables || $Error;;
+  "mel01" ) sed -i -e 's/161\.202\.118/168.1.118/'   /etc/sysconfig/iptables || $Error;;
+  "mex01" ) sed -i -e 's/161\.202\.118/169.57.118/'   /etc/sysconfig/iptables || $Error;;
+  "par01" ) sed -i -e 's/161\.202\.118/159.8.118/'   /etc/sysconfig/iptables || $Error;;
+  "sea01" ) sed -i -e 's/161\.202\.118/67.228.118/'  /etc/sysconfig/iptables || $Error;;
+  "sjc01" ) sed -i -e 's/161\.202\.118/50.23.118/'   /etc/sysconfig/iptables || $Error;;
+  "sng01" ) sed -i -e 's/161\.202\.118/174.133.118/' /etc/sysconfig/iptables || $Error;;
+# "tok02" ) sed -i -e 's/161\.202\.118/161.202.118/' /etc/sysconfig/iptables || $Error;;
+  "tor01" ) sed -i -e 's/161\.202\.118/158.85.118/'  /etc/sysconfig/iptables || $Error;;
+  "wdc01" ) sed -i -e 's/161\.202\.118/208.43.118/'  /etc/sysconfig/iptables || $Error;;
 esac
 /etc/init.d/iptables restart || $Error
 iptables -nvL || $Error
@@ -399,7 +406,7 @@ EOF
 
 if [ -e /etc/modprobe.conf ]; then
   cat /etc/modprobe.conf || $Error
-  mv /etc/modprobe.conf /etc/modprobe.d/bonding.conf || $Error
+  mv /etc/modprobe.conf /etc/modprobe.d/local.conf || $Error
 fi
 
 cat << 'EOF' | tee /etc/modprobe.d/ixgbe.conf || $Error
@@ -1652,13 +1659,13 @@ yum -y --enablerepo=epel,pgdg93 install \
 #yum -y --enablerepo=MySQL56 install mysql-server mysql-devel mysql-test mysql-bench || $Error
 yum -y --enablerepo=epel,remi install mysql-server mysql-devel mysql-test mysql-bench || $Error
 
-yum -y localinstall http://www.percona.com/downloads/XtraBackup/LATEST/binary/redhat/6/x86_64/percona-xtrabackup-2.2.4-5004.el6.x86_64.rpm || $Error
+yum -y localinstall http://www.percona.com/downloads/XtraBackup/XtraBackup-2.2.7/binary/redhat/6/x86_64/percona-xtrabackup-2.2.7-5050.el6.x86_64.rpm || $Error
 
-yum -y localinstall http://www.percona.com/downloads/percona-toolkit/LATEST/RPM/percona-toolkit-2.2.11-1.noarch.rpm || $Error
+yum -y localinstall http://www.percona.com/downloads/percona-toolkit/2.2.12/RPM/percona-toolkit-2.2.12-1.noarch.rpm || $Error
 
-#yum -y localinstall file:///C:/Users/dba/Documents/Downloads/percona-zabbix-templates-1.1.4-1.noarch.rpm || $Error
+#yum -y localinstall percona-zabbix-templates-1.1.4-1.noarch.rpm || $Error
 
-yum -y --enablerepo=pgdg93 install postgresql93\* || $Error
+yum -y --enablerepo=epel,pgdg93 install postgresql93\* || $Error
 
 #yum -y install --enablerepo=epel,pgdg93 \
 # CGAL \
@@ -2712,7 +2719,7 @@ cat << EOF | tee /etc/sysconfig/iptables
 -A INPUT -p tcp --dport 3001  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p tcp --dport 3003  -m tcp -m state --state NEW -s $SSH_CLIENTS -j ACCEPT
 -A INPUT -p icmp -s 10.0.0.0/8 -j ACCEPT
-#-A INPUT -j LOG --log-prefix "iptables: " --log-level=debug
+#-A INPUT -j LOG --log-prefix "iptables: " --log-level debug
 -A INPUT -j REJECT --reject-with icmp-host-prohibited
 ########## FORWARD ##########
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
