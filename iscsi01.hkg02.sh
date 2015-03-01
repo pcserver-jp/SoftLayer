@@ -328,6 +328,7 @@ mv /var/cache/yum/x86_64/*/*/packages/*.rpm /var/www/html/repo.ol6/
 for i in $(chkconfig --list | grep ^[A-Za-z] | grep -v services: | awk '{print $1}')
 do
   case $i in
+    EventMonitorService   ) chkconfig $i on;;
     atd                   ) chkconfig $i on;;
     crond                 ) chkconfig $i on;;
     dnsmasq               ) chkconfig $i on;;

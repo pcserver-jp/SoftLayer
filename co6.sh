@@ -2990,6 +2990,14 @@ if [ "$INIT_MODE" = "MASTER" ]; then
   crm configure load update /etc/ha.d/crm_nfsserver_for_backup || exit 1
   while ! crm_mon -1rfA | grep IPaddr2 | grep Started; do sleep 5; done
   crm_mon -1frA
+  cd / || exit 1
+  if [ ! -e /root/.ssh/id_rsa ]; then
+    ssh-keygen -q -f /root/.ssh/id_rsa -N "" || exit 1
+    mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys || exit 1
+  fi
+  sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config || exit 1
+  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_cluster etc/ha.d/_param_cluster root/.ssh/id_rsa root/.ssh/authorized_keys || exit 1
+  /etc/init.d/sshd restart || exit 1
   mkdir -p $NFS_EXPORT_POINT/ks || exit 1
   cat << EOF | tee $NFS_EXPORT_POINT/ks/backup_boot_root.cfg
 install
@@ -3062,14 +3070,6 @@ EOF
   mount -o loop $NFS_EXPORT_POINT/co$CENTOS_VER/CentOS-$CENTOS_VER-x86_64-minimal.iso /mnt || exit 1
   cp /mnt/images/{install.img,updates.img} $NFS_EXPORT_POINT/co$CENTOS_VER/images/ || exit 1
   umount /mnt || exit 1
-  cd / || exit 1
-  if [ ! -e /root/.ssh/id_rsa ]; then
-    ssh-keygen -q -f /root/.ssh/id_rsa -N "" || exit 1
-    mv -f /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys || exit 1
-  fi
-  sed -i -e 's/^PermitRootLogin no$/#PermitRootLogin no/' -e 's/^#PermitRootLogin without-password$/PermitRootLogin without-password/' /etc/ssh/sshd_config || exit 1
-  tar czvf /root/ha_param.tgz etc/ssh etc/ha.d/param_cluster etc/ha.d/_param_cluster root/.ssh/id_rsa root/.ssh/authorized_keys || exit 1
-  /etc/init.d/sshd restart || exit 1
   echo; echo "The setup of the master server was completed. Please set up the slave server."
 elif [ "$INIT_MODE" = "SLAVE" ]; then
   echo yes | drbdadm wipe-md r0 || exit 1
