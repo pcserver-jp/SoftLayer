@@ -3,7 +3,7 @@
 exec 2>&1
 
 MY_DOMAIN=example.com
-#MY_PRIVATE_4=2
+
 ##### Please change the following settings to your portable private addresses.
 #PRIVATE_BASE_123=10.64.102
 #PRIVATE_BASE_4=0
@@ -11,11 +11,11 @@ MY_DOMAIN=example.com
 #NIC0=bond0; ifconfig bond0 > /dev/null 2>&1 || NIC0=eth0
 #PRIVATE_IP=$(ifconfig $NIC0 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
 #NIC1=bond1; ifconfig bond1 > /dev/null 2>&1 || NIC1=eth1
-#PUBLOC_IP=$(ifconfig $NIC1 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
+#PUBLIC_IP=$(ifconfig $NIC1 | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}')
 
 #cat << EOF | sudo tee /etc/hosts
 #127.0.0.1       localhost.localdomain   localhost
-#$PUBLOC_IP  iscsi01-g.$MY_DOMAIN   iscsi01-g
+#$PUBLIC_IP  iscsi01-g.$MY_DOMAIN   iscsi01-g
 #$PRIVATE_IP   iscsi01-prm.$MY_DOMAIN iscsi01-prm
 #$PRIVATE_BASE_123.$((PRIVATE_BASE_4+2))     iscsi01.$MY_DOMAIN     iscsi01  dns01.$MY_DOMAIN dns01 repo01.$MY_DOMAIN repo01
 #$PRIVATE_BASE_123.$((PRIVATE_BASE_4+3))     db01.$MY_DOMAIN        db01
@@ -38,7 +38,7 @@ MY_DOMAIN=example.com
 #DEVICE=$NIC0:1
 #BOOTPROTO=static
 #ONBOOT=yes
-#IPADDR=$PRIVATE_BASE_123.$MY_PRIVATE_4
+#IPADDR=$PRIVATE_BASE_123.$((PRIVATE_BASE_4+2))
 #NETMASK=255.255.255.192
 #NM_CONTROLLED=no
 #EOF
@@ -262,7 +262,7 @@ groupadd -g 54326 kmdba
 groupadd -g 54327 asmadmin
 groupadd -g 54328 asmdba
 groupadd -g 54329 asmoper
-useradd -g oinstall -G dba,backupdba,dgdba,kmdba,asmdba -u 54321 oracle
+useradd -g oinstall -G dba,oper,backupdba,dgdba,kmdba,asmdba -u 54321 oracle
 echo oracle | passwd --stdin oracle
 chage -d 0 oracle
 useradd -g oinstall -G asmadmin,asmdba,asmoper -u 54322 grid
@@ -584,7 +584,7 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-oracle
 gpgcheck=1
 enabled=0
 EOF
-cat << 'EOF' | tee /var/www/html/repo-with-no-sign.repo
+cat << EOF | tee /var/www/html/repo-with-no-sign.repo
 [Repo with no sign]
 name=Repo with no sign (x86_64)
 baseurl=http://$PRIVATE_IP/repo.nosig/
